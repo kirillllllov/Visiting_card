@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#EEEEEE">
+
+    <!-- Карточка визитки на всю ширину экрана -->
+    <androidx.cardview.widget.CardView
+    	android:id="@+id/business_card"
+    	android:layout_width="match_parent"
+    	android:layout_height="0dp"
+    	android:layout_marginTop="32dp"
+    	android:layout_marginBottom="32dp"
+    	app:cardCornerRadius="16dp"
+    	app:cardElevation="8dp"
+    	app:layout_constraintTop_toTopOf="parent"
+    	app:layout_constraintBottom_toBottomOf="parent"
+    	app:layout_constraintStart_toStartOf="parent"
+    	app:layout_constraintEnd_toEndOf="parent"
+    	app:layout_constraintDimensionRatio="16:9">
+
+
+        <!-- Внутреннее содержимое карточки -->
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:padding="16dp">
+
+			<!-- Телефон в левом верхнем углу -->
+
+			<!-- Логотип в правом верхнем углу -->
+			<TextView
+				android:id="@+id/phone_number"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:fontFamily="@font/garamond_classico_sc"
+				android:text="+7 (999) 123-45-67"
+				android:textColor="#000"
+				android:textSize="14sp"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toTopOf="parent" />
+
+			<!-- Центр: ФИО и Должность -->
+
+			<ImageView
+				android:id="@+id/logo"
+				android:layout_width="93dp"
+				android:layout_height="19dp"
+				android:contentDescription="Company Logo"
+				android:src="@drawable/logo"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="parent" />
+
+			<LinearLayout
+				android:id="@+id/name_position"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				app:layout_constraintBottom_toTopOf="@+id/telegram_info"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toTopOf="parent"
+				app:layout_constraintVertical_bias="0.5">
+
+				<TextView
+					android:id="@+id/full_name"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:fontFamily="@font/garamond_classico_sc"
+					android:gravity="center"
+					android:text="Patrick BATEMAN"
+					android:textColor="#000"
+					android:textSize="24sp"
+					android:textStyle="bold" />
+
+				<TextView
+					android:id="@+id/position"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:fontFamily="@font/garamond_classico_sc"
+					android:gravity="center"
+					android:text="Vice President"
+					android:textColor="#666"
+					android:textSize="18sp" />
+
+			</LinearLayout>
+
+			<!-- Низ: Telegram ID и город -->
+			<TextView
+				android:id="@+id/telegram_info"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="8dp"
+				android:fontFamily="@font/garamond_classico_sc"
+				android:text="@user_id | New York City"
+				android:textColor="#000"
+				android:textSize="16sp"
+				app:layout_constraintBottom_toBottomOf="parent"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent" />
+
+		</androidx.constraintlayout.widget.ConstraintLayout>
+
+	</androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
