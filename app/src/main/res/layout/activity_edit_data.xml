@@ -11,45 +11,57 @@
 
         <EditText
             android:id="@+id/full_name_input"
-            android:hint="ФИО"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:hint="ФИО" />
 
         <EditText
             android:id="@+id/position_input"
-            android:hint="Должность"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"/>
+            android:hint="Должность"
+            android:layout_marginTop="12dp" />
 
         <EditText
             android:id="@+id/phone_input"
-            android:hint="Телефон"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"/>
+            android:hint="Телефон"
+            android:layout_marginTop="12dp" />
 
         <EditText
             android:id="@+id/email_input"
-            android:hint="Email"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"/>
+            android:hint="Email"
+            android:layout_marginTop="12dp" />
 
         <EditText
             android:id="@+id/telegram_input"
-            android:hint="Telegram ID"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"/>
+            android:hint="Telegram | Город"
+            android:layout_marginTop="12dp" />
+
+        <EditText
+            android:id="@+id/interests_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Интересы"
+            android:layout_marginTop="12dp" />
+
+        <EditText
+            android:id="@+id/skills_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Навыки"
+            android:layout_marginTop="12dp" />
 
         <Button
             android:id="@+id/save_button"
-            android:text="Сохранить"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"/>
-
+            android:text="Сохранить"
+            android:layout_marginTop="24dp" />
     </LinearLayout>
-
 </ScrollView>
