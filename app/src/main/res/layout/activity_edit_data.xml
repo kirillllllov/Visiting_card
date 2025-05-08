@@ -40,7 +40,7 @@
             android:id="@+id/telegram_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Telegram | Город"
+            android:hint="Telegram"
             android:layout_marginTop="12dp" />
 
         <EditText
@@ -56,12 +56,29 @@
             android:layout_height="wrap_content"
             android:hint="Навыки"
             android:layout_marginTop="12dp" />
+        <ImageView
+            android:id="@+id/edit_photo"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:src="@drawable/photo"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_background"
+            android:padding="0dp"
+            android:clipToOutline="true"
+            android:contentDescription="Edit Profile Photo"
+            />
+
 
         <Button
             android:id="@+id/save_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Сохранить"
-            android:layout_marginTop="24dp" />
+            android:backgroundTint="#E000"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/circle_background"
+            android:textSize="16sp" />
     </LinearLayout>
 </ScrollView>

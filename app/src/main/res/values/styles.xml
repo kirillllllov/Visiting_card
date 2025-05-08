@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Тема для вашего приложения -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Здесь можно настроить цвета, шрифты и т.д. -->
     </style>
 </resources>

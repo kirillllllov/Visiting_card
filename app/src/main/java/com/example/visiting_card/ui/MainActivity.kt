@@ -1,5 +1,6 @@
 package com.example.visiting_card.ui
 
+import android.app.Dialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -23,15 +24,37 @@ import com.example.visiting_card.R
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import kotlinx.coroutines.launch
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.widget.ImageView
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.common.BitMatrix
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
-
+    private lateinit var pickImageLauncher: ActivityResultLauncher<Intent>
     private var bottomSheetBehavior: BottomSheetBehavior<View>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val imageUri = result.data?.data ?: return@registerForActivityResult
 
+                // Сохраняем URI
+                getSharedPreferences("VisitingCardData", MODE_PRIVATE)
+                    .edit()
+                    .putString("profile_image_uri", imageUri.toString())
+                    .apply()
+
+                // Обновляем ImageView
+                val rootView = findViewById<View>(android.R.id.content)
+                val photoView = rootView.findViewById<ImageView>(R.id.photo)
+                photoView.setImageURI(imageUri)
+            }
+        }
         val sharedPreferences: SharedPreferences = getSharedPreferences("VisitingCardData", MODE_PRIVATE)
 
         // Загрузка данных из SharedPreferences
@@ -57,6 +80,8 @@ class MainActivity : ComponentActivity() {
                 interests = data.getStringExtra("interests") ?: interests
                 skills = data.getStringExtra("skills") ?: skills
 
+                val imageUriString = data.getStringExtra("profile_image_uri")
+
                 // Сохраняем обновленные данные в SharedPreferences
                 with(sharedPreferences.edit()) {
                     putString("fullName", fullName)
@@ -66,10 +91,13 @@ class MainActivity : ComponentActivity() {
                     putString("telegram", telegram)
                     putString("interests", interests)
                     putString("skills", skills)
+                    if (imageUriString != null) {
+                        putString("profile_image_uri", imageUriString)
+                    }
                     apply()
                 }
 
-                // Обновляем TextView в MainActivity
+                // Обновляем UI
                 val rootView = findViewById<View>(android.R.id.content)
                 rootView.findViewById<TextView>(R.id.full_name)?.text = fullName
                 rootView.findViewById<TextView>(R.id.position)?.text = position
@@ -78,8 +106,15 @@ class MainActivity : ComponentActivity() {
                 rootView.findViewById<TextView>(R.id.telegram_info)?.text = telegram
                 rootView.findViewById<TextView>(R.id.interests)?.text = interests
                 rootView.findViewById<TextView>(R.id.skills)?.text = skills
+
+                // Обновляем фото, если есть
+                imageUriString?.let {
+                    val imageUri = Uri.parse(it)
+                    rootView.findViewById<ImageView>(R.id.photo)?.setImageURI(imageUri)
+                }
             }
         }
+
 
 
 
@@ -146,6 +181,17 @@ class MainActivity : ComponentActivity() {
                                     peekHeight = 100
                                     isHideable = false
                                 }
+                                val photoView = root.findViewById<ImageView>(R.id.photo)
+                                val savedUri = sharedPreferences.getString("profile_image_uri", null)
+                                if (savedUri != null) {
+                                    photoView.setImageURI(Uri.parse(savedUri))
+                                }
+                                photoView.setOnClickListener {
+                                    val intent = Intent(Intent.ACTION_PICK).apply {
+                                        type = "image/*"
+                                    }
+                                    pickImageLauncher.launch(intent)
+                                }
 
                                 // Загрузка данных из SharedPreferences в TextView
                                 root.findViewById<TextView>(R.id.full_name).text = fullName
@@ -189,11 +235,8 @@ class MainActivity : ComponentActivity() {
                                     val position = root.findViewById<TextView>(R.id.position).text
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text
                                     val emailText = root.findViewById<TextView>(R.id.email).text
-                                    val telegramInfoText =
-                                        root.findViewById<TextView>(R.id.telegram_info).text.toString()
-
                                     val telegramId =
-                                        telegramInfoText.split("|").firstOrNull()?.trim() ?: ""
+                                        root.findViewById<TextView>(R.id.telegram_info).text.toString()
 
                                     val shareText = """
                                         👤 $fullName
@@ -209,6 +252,22 @@ class MainActivity : ComponentActivity() {
                                     }
                                     startActivity(Intent.createChooser(shareIntent, "Поделиться через"))
                                 }
+                                    val showQrButton = root.findViewById<Button>(R.id.show_qr_button)
+                                    showQrButton.setOnClickListener {
+                                        val email = root.findViewById<TextView>(R.id.email).text.toString()
+                                        val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
+                                        val fullName = root.findViewById<TextView>(R.id.full_name).text.toString()
+                                        val contactData = """
+                                            BEGIN:VCARD
+                                            VERSION:3.0
+                                            N:${fullName}
+                                            TEL:${phone}
+                                            EMAIL:${email}
+                                            END:VCARD
+                                            """.trimIndent()
+                                        val qrBitmap = generateQrCode(contactData)
+                                        showQrDialog(qrBitmap)
+                                    }
 
                                 val card = root.findViewById<View>(R.id.business_card)
                                 card.setOnClickListener {
@@ -228,9 +287,33 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    fun generateQrCode(data: String, size: Int = 512): Bitmap {
+        val hints = mapOf(EncodeHintType.CHARACTER_SET to "UTF-8")
+        val bitMatrix: BitMatrix = MultiFormatWriter().encode(data, BarcodeFormat.QR_CODE, size, size, hints)
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565)
+
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bmp.setPixel(x, y, if (bitMatrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            }
+        }
+        return bmp
+    }
+    private fun showQrDialog(qrBitmap: Bitmap) {
+        val dialog = Dialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_qr_code, null)
+        val qrImage = view.findViewById<ImageView>(R.id.qrCodeImageView)
+        val closeButton = view.findViewById<Button>(R.id.closeButton)
+
+        qrImage.setImageBitmap(qrBitmap)
+        closeButton.setOnClickListener { dialog.dismiss() }
+
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
 
     private fun extractUsername(text: String): String? {
-        val parts = text.split(" ")
-        return parts.firstOrNull()?.removePrefix("@")
+        return text.removePrefix("@").trim()
     }
 }

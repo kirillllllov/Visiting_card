@@ -10,7 +10,7 @@
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#EEEEEE">
+        android:background="#FFFFFF">
 
         <android.widget.Toolbar
             android:id="@+id/toolbar"
@@ -108,7 +108,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
                         android:fontFamily="@font/garamond_classico_sc"
-                        android:text="@psychoamerican | New York City"
+                        android:text="@psychoamerican"
                         android:textColor="#000"
                         android:textSize="16sp"
                         app:layout_constraintBottom_toBottomOf="parent"
@@ -125,7 +125,7 @@
         <LinearLayout
             android:id="@+id/bottomSheet"
             android:layout_width="match_parent"
-            android:layout_height="450dp"
+            android:layout_height="500dp"
             android:layout_gravity="bottom"
             android:orientation="vertical"
             android:background="@drawable/bottom_sheet_background"
@@ -197,6 +197,17 @@
                 android:textColor="#FFFFFF"
                 android:background="@drawable/circle_background"
                 android:textSize="16sp" />
+            <Button
+                android:id="@+id/show_qr_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Показать QR-код"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#E000"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/circle_background"
+                android:textSize="16sp"/>
+
 
 
 
