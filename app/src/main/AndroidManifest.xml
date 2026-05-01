@@ -19,6 +19,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.EditCardInfoActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.EditDataActivity"
             android:theme="@style/AppTheme"
             android:windowSoftInputMode="adjustResize" />

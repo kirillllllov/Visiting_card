@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/edit_card_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/accent"
+        app:title="Изменить информацию на визитке"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/white" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Photo -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Фото профиля (нажмите для изменения)"
+                android:textAlignment="center"
+                android:textSize="13sp"
+                android:textColor="#999999"
+                android:layout_marginBottom="8dp" />
+
+            <ImageView
+                android:id="@+id/eci_photo"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/photo"
+                android:scaleType="centerCrop"
+                android:background="@drawable/circle_background"
+                android:clipToOutline="true"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Фото профиля" />
+
+            <!-- ── Данные визитки ── -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Данные визитки"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#777777"
+                android:textAllCaps="true"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="ФИО"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/eci_full_name_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName|textCapWords"
+                    android:imeOptions="actionNext" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="Должность"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/eci_position_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapWords"
+                    android:imeOptions="actionNext" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="Телефон"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/eci_phone_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone"
+                    android:imeOptions="actionNext" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="О себе"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/eci_about_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3"
+                    android:gravity="top"
+                    android:imeOptions="actionDone" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- ── Отображение на визитке ── -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#EEEEEE"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Отображение на визитке"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#777777"
+                android:textAllCaps="true"
+                android:layout_marginBottom="4dp" />
+
+            <CheckBox
+                android:id="@+id/cb_show_position"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Показывать должность"
+                android:textSize="16sp"
+                android:paddingStart="8dp"
+                android:buttonTint="@color/accent" />
+
+            <CheckBox
+                android:id="@+id/cb_show_phone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Показывать номер телефона"
+                android:textSize="16sp"
+                android:paddingStart="8dp"
+                android:buttonTint="@color/accent" />
+
+            <CheckBox
+                android:id="@+id/cb_show_logo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Показывать логотип"
+                android:textSize="16sp"
+                android:paddingStart="8dp"
+                android:buttonTint="@color/accent" />
+
+            <CheckBox
+                android:id="@+id/cb_show_social"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Показывать соц.сеть"
+                android:textSize="16sp"
+                android:paddingStart="8dp"
+                android:buttonTint="@color/accent" />
+
+            <!-- Social network selection (visible only when show_social is checked) -->
+            <LinearLayout
+                android:id="@+id/social_selection_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/social_no_networks_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Нет добавленных соц.сетей. Добавьте через «Добавить соц.сети» в меню."
+                    android:textSize="13sp"
+                    android:textColor="#999999"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:visibility="gone" />
+
+                <RadioGroup
+                    android:id="@+id/social_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Save button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/eci_save_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:layout_marginBottom="8dp"
+                android:text="Сохранить"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="24dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
