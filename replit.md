@@ -1,7 +1,7 @@
 # Visiting Card — Android App
 
 ## Overview
-A native Android application ("Визитка") — a digital business card that lets users store, edit, and share their contact info, with QR code (vCard format) generation for easy contact sharing.
+A native Android application ("Визитка") — a digital business card that lets users store, edit, and share their contact info, with QR code generation and social network management.
 
 ## Important Note
 This is a **native Android application** and cannot run in Replit's web preview. It requires Android SDK, Java/Kotlin toolchain, and an Android device or emulator.
@@ -28,19 +28,25 @@ To build and run locally:
 ```
 app/src/main/
 ├── java/com/example/visiting_card/ui/
-│   ├── MainActivity.kt       # Main screen: Compose drawer shell + AndroidView XML card
-│   └── EditDataActivity.kt   # Edit profile info (View-based with MaterialToolbar)
+│   ├── MainActivity.kt               # Main screen: Compose drawer shell + AndroidView XML card
+│   ├── EditDataActivity.kt           # Edit profile info (View-based with MaterialToolbar)
+│   ├── AddSocialNetworksActivity.kt  # Manage social network accounts (list + add/delete)
+│   └── SocialNetworkUtils.kt         # Social network data class, load/save/URL builder
 ├── res/
 │   ├── layout/
-│   │   ├── activity_main.xml      # Business card + BottomSheet (CoordinatorLayout root)
-│   │   ├── activity_edit_data.xml # Edit form with MaterialToolbar + TextInputLayouts
-│   │   └── dialog_qr_code.xml     # QR code display dialog
+│   │   ├── activity_main.xml                # Business card + BottomSheet (CoordinatorLayout)
+│   │   ├── activity_edit_data.xml           # Edit form with MaterialToolbar + TextInputLayouts
+│   │   ├── activity_add_social_networks.xml # Social networks management screen
+│   │   ├── dialog_qr_code.xml              # QR code display dialog (dynamic title)
+│   │   ├── dialog_add_social_network.xml   # Add network dialog (Spinner + TextInput)
+│   │   └── item_social_network.xml         # Row in the social networks list
 │   ├── drawable/
 │   │   ├── bottom_sheet_background.xml       # White with rounded top corners
 │   │   ├── bottom_sheet_background_dark.xml  # Dark (#1E1E1E) with rounded top corners
 │   │   ├── circle_background.xml             # Circular photo background
 │   │   ├── drag_handle.xml                   # Bottom sheet drag indicator
 │   │   ├── ic_arrow_back.xml                 # Back arrow vector
+│   │   ├── ic_delete.xml                     # Delete (X) icon vector
 │   │   ├── logo_for_light_theme.png          # Logo shown on light background
 │   │   └── logo_for_dark_theme.png           # Logo shown on dark background
 │   ├── values/
@@ -53,19 +59,23 @@ app/src/main/
 
 ## Features
 - Business card display (name, position, phone, Telegram) in a CardView
-- Floating hamburger menu button (no top bar) opens Compose ModalNavigationDrawer
-- Bottom sheet (NestedScrollView) slides up with: photo, email, about text, Share and QR buttons
+- Floating hamburger menu button (positioned below status bar) opens Compose ModalNavigationDrawer
+- Bottom sheet slides up with: photo, email, about text, and 4 action buttons:
+  - **"Поделиться"** — shares contact info as text via system share sheet
+  - **"Поделиться номером телефона"** — QR code with phone vCard (scan → add to contacts)
+  - **"Поделиться email"** — QR code with `mailto:` URI (scan → open email client)
+  - **"Поделиться соц.сетями"** — dialog to pick single social network URL QR or "all" vCard QR
+- Drawer menu: theme toggle | edit data | **Добавить соц.сети**
+- Social networks screen: supports Telegram, Instagram, Facebook, Twitter/X, LinkedIn, YouTube, TikTok, VK; stored as JSON in prefs under `social_networks` key
 - Edit profile stored in SharedPreferences (prefs: `"VisitingCardData"`)
 - On first launch (empty name), EditDataActivity opens automatically
 - Profile photo from gallery (via photo picker)
-- QR code generation (vCard 3.0 format via ZXing)
-- Share contact text via system share sheet
 - Clickable phone (dial), email (compose), Telegram (open app) fields
 - Full light/dark theme toggle — affects Compose drawer AND XML views (background, card, fonts, buttons, logo)
 
 ## SharedPreferences Contract
 All data uses prefs name `"VisitingCardData"` with keys (all in `EditDataActivity.Companion`):
-- `fullName`, `position`, `phone`, `email`, `telegram`, `about`, `profile_image_uri`
+- `fullName`, `position`, `phone`, `email`, `telegram`, `about`, `social_networks`, `profile_image_uri`
 
 ## Theme System
 `isDarkTheme: MutableState<Boolean>` drives both layers:
@@ -74,7 +84,7 @@ All data uses prefs name `"VisitingCardData"` with keys (all in `EditDataActivit
   - Root background, CardView background, BottomSheet background (swaps drawable)
   - Card text colors (primary/secondary)
   - BottomSheet text colors
-  - Button `backgroundTintList` + text color
+  - All 4 button `backgroundTintList` + text color
   - Logo `setImageResource` (light ↔ dark logo)
 
 ## Bug History (resolved)

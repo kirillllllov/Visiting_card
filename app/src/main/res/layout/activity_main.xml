@@ -113,7 +113,7 @@
     <androidx.core.widget.NestedScrollView
         android:id="@+id/bottomSheet"
         android:layout_width="match_parent"
-        android:layout_height="480dp"
+        android:layout_height="560dp"
         android:layout_gravity="bottom"
         android:background="@drawable/bottom_sheet_background"
         android:elevation="12dp"
@@ -170,7 +170,7 @@
                 android:textAlignment="center"
                 android:textSize="15sp" />
 
-            <!-- Share button -->
+            <!-- Share text button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/share_button"
                 android:layout_width="match_parent"
@@ -182,13 +182,37 @@
                 app:backgroundTint="@color/accent"
                 app:cornerRadius="24dp" />
 
-            <!-- Show QR button -->
+            <!-- Share phone (QR → add to contacts) -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/show_qr_button"
+                android:id="@+id/share_phone_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="Показать QR-код"
+                android:text="Поделиться номером телефона"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="24dp" />
+
+            <!-- Share email (QR → mailto:) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/share_email_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Поделиться email"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="24dp" />
+
+            <!-- Share social networks -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/share_social_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Поделиться соц.сетями"
                 android:textColor="@color/white"
                 android:textSize="16sp"
                 app:backgroundTint="@color/accent"

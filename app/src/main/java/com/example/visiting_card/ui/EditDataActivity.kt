@@ -25,6 +25,7 @@ class EditDataActivity : ComponentActivity() {
         const val KEY_EMAIL = "email"
         const val KEY_TELEGRAM = "telegram"
         const val KEY_ABOUT = "about"
+        const val KEY_SOCIAL_NETWORKS = "social_networks"
         const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
     }
 

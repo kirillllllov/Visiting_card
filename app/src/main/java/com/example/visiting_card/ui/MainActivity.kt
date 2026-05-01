@@ -1,5 +1,6 @@
 package com.example.visiting_card.ui
 
+import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Intent
 import android.graphics.Bitmap
@@ -9,6 +10,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,8 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.visiting_card.R
@@ -32,6 +34,7 @@ import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_FULL_NAME
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_PHONE
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_POSITION
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_PROFILE_IMAGE_URI
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_SOCIAL_NETWORKS
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_TELEGRAM
 import com.example.visiting_card.ui.EditDataActivity.Companion.PREFS_NAME
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -64,9 +67,7 @@ class MainActivity : ComponentActivity() {
         pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
                 val imageUri = result.data?.data ?: return@registerForActivityResult
-                sharedPreferences.edit()
-                    .putString(KEY_PROFILE_IMAGE_URI, imageUri.toString())
-                    .apply()
+                sharedPreferences.edit().putString(KEY_PROFILE_IMAGE_URI, imageUri.toString()).apply()
                 profileImageUriState.value = imageUri.toString()
             }
         }
@@ -81,15 +82,12 @@ class MainActivity : ComponentActivity() {
                 telegramState.value = data.getStringExtra(KEY_TELEGRAM) ?: telegramState.value
                 aboutState.value = data.getStringExtra(KEY_ABOUT) ?: aboutState.value
                 val imageUriString = data.getStringExtra(KEY_PROFILE_IMAGE_URI)
-                if (imageUriString != null) {
-                    profileImageUriState.value = imageUriString
-                }
+                if (imageUriString != null) profileImageUriState.value = imageUriString
             }
         }
 
-        // On first launch (name not set), immediately open the edit screen
-        val isFirstLaunch = sharedPreferences.getString(KEY_FULL_NAME, "").isNullOrEmpty()
-        if (isFirstLaunch) {
+        // On first launch (name empty), open the edit screen immediately
+        if (sharedPreferences.getString(KEY_FULL_NAME, "").isNullOrEmpty()) {
             editedDataLauncher.launch(Intent(this, EditDataActivity::class.java))
         }
 
@@ -128,6 +126,7 @@ class MainActivity : ComponentActivity() {
                     drawerContent = {
                         ModalDrawerSheet {
                             Spacer(modifier = Modifier.height(16.dp))
+                            // Theme toggle
                             Text(
                                 text = if (isDark) "Светлая тема" else "Тёмная тема",
                                 modifier = Modifier
@@ -140,6 +139,7 @@ class MainActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            // Edit data
                             Text(
                                 "Редактировать данные",
                                 modifier = Modifier
@@ -147,6 +147,21 @@ class MainActivity : ComponentActivity() {
                                     .clickable {
                                         editedDataLauncher.launch(
                                             Intent(this@MainActivity, EditDataActivity::class.java)
+                                        )
+                                        scope.launch { drawerState.close() }
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            // Add social networks
+                            Text(
+                                "Добавить соц.сети",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        startActivity(
+                                            Intent(this@MainActivity, AddSocialNetworksActivity::class.java)
                                         )
                                         scope.launch { drawerState.close() }
                                     }
@@ -170,38 +185,39 @@ class MainActivity : ComponentActivity() {
                                     isHideable = false
                                 }
 
+                                // Phone → dial
                                 val phoneView = root.findViewById<TextView>(R.id.phone_number)
                                 phoneView.setOnClickListener {
-                                    val phoneUri = Uri.parse("tel:${phoneView.text}")
-                                    startActivity(Intent(Intent.ACTION_DIAL, phoneUri))
+                                    startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phoneView.text}")))
                                 }
 
+                                // Email → compose
                                 val emailView = root.findViewById<TextView>(R.id.email)
                                 emailView.setOnClickListener {
-                                    val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                    startActivity(Intent(Intent.ACTION_SENDTO).apply {
                                         this.data = Uri.parse("mailto:${emailView.text}")
-                                    }
-                                    startActivity(emailIntent)
+                                    })
                                 }
 
+                                // Telegram → open
                                 val telegramView = root.findViewById<TextView>(R.id.telegram_info)
                                 telegramView.setOnClickListener {
                                     val username = extractUsername(telegramView.text.toString())
                                     if (!username.isNullOrEmpty()) {
-                                        startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$username"))
-                                        )
+                                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$username")))
                                     }
                                 }
 
+                                // Photo → pick from gallery
                                 val photoView = root.findViewById<ImageView>(R.id.photo)
                                 photoView.setOnClickListener {
-                                    val intent = Intent(Intent.ACTION_PICK).apply { type = "image/*" }
-                                    pickImageLauncher.launch(intent)
+                                    pickImageLauncher.launch(
+                                        Intent(Intent.ACTION_PICK).apply { type = "image/*" }
+                                    )
                                 }
 
-                                val shareButton = root.findViewById<MaterialButton>(R.id.share_button)
-                                shareButton.setOnClickListener {
+                                // Share text
+                                root.findViewById<MaterialButton>(R.id.share_button).setOnClickListener {
                                     val name = root.findViewById<TextView>(R.id.full_name).text
                                     val pos = root.findViewById<TextView>(R.id.position).text
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text
@@ -214,29 +230,43 @@ class MainActivity : ComponentActivity() {
                                         appendLine("✉️ $emailText")
                                         append("📱 $tg")
                                     }
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareText)
-                                    }
-                                    startActivity(Intent.createChooser(shareIntent, "Поделиться через"))
+                                    startActivity(Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                        },
+                                        "Поделиться через"
+                                    ))
                                 }
 
-                                val showQrButton = root.findViewById<MaterialButton>(R.id.show_qr_button)
-                                showQrButton.setOnClickListener {
+                                // Share phone → QR vCard with name + phone (scan → add to contacts)
+                                root.findViewById<MaterialButton>(R.id.share_phone_button).setOnClickListener {
                                     val name = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
-                                    val emailText = root.findViewById<TextView>(R.id.email).text.toString()
-                                    val contactData = "BEGIN:VCARD\n" +
+                                    val vCard = "BEGIN:VCARD\n" +
                                         "VERSION:3.0\n" +
                                         "FN:$name\n" +
                                         "TEL:$phone\n" +
-                                        "EMAIL:$emailText\n" +
                                         "END:VCARD"
-                                    showQrDialog(generateQrCode(contactData))
+                                    showQrDialog(generateQrCode(vCard), "Поделиться номером")
                                 }
 
-                                val card = root.findViewById<View>(R.id.business_card)
-                                card.setOnClickListener {
+                                // Share email → QR with mailto: (scan → open email app)
+                                root.findViewById<MaterialButton>(R.id.share_email_button).setOnClickListener {
+                                    val emailText = root.findViewById<TextView>(R.id.email).text.toString()
+                                    if (emailText.isBlank()) return@setOnClickListener
+                                    showQrDialog(generateQrCode("mailto:$emailText"), "Поделиться email")
+                                }
+
+                                // Share social networks → selection dialog
+                                root.findViewById<MaterialButton>(R.id.share_social_button).setOnClickListener {
+                                    showSocialShareDialog(
+                                        root.findViewById<TextView>(R.id.full_name).text.toString()
+                                    )
+                                }
+
+                                // Card click → toggle bottom sheet
+                                root.findViewById<View>(R.id.business_card).setOnClickListener {
                                     bottomSheetBehavior?.let { bsb ->
                                         bsb.state = if (bsb.state == BottomSheetBehavior.STATE_EXPANDED)
                                             BottomSheetBehavior.STATE_COLLAPSED
@@ -250,24 +280,22 @@ class MainActivity : ComponentActivity() {
                             update = { root ->
                                 val dark = isDarkTheme.value
 
-                                // ── Background ──
-                                val bgColor = if (dark) Color.parseColor("#121212") else Color.WHITE
-                                root.setBackgroundColor(bgColor)
+                                // Background
+                                root.setBackgroundColor(if (dark) Color.parseColor("#121212") else Color.WHITE)
 
-                                // ── Bottom sheet background (rounded top corners) ──
-                                root.findViewById<View>(R.id.bottomSheet)
-                                    .setBackgroundResource(
-                                        if (dark) R.drawable.bottom_sheet_background_dark
-                                        else R.drawable.bottom_sheet_background
-                                    )
+                                // Bottom sheet background
+                                root.findViewById<View>(R.id.bottomSheet).setBackgroundResource(
+                                    if (dark) R.drawable.bottom_sheet_background_dark
+                                    else R.drawable.bottom_sheet_background
+                                )
 
-                                // ── Card background ──
+                                // Card background
                                 root.findViewById<CardView>(R.id.business_card)
                                     .setCardBackgroundColor(
                                         if (dark) Color.parseColor("#1E1E1E") else Color.WHITE
                                     )
 
-                                // ── Card text colors ──
+                                // Card text colors
                                 val cardPrimary = if (dark) Color.WHITE else Color.BLACK
                                 val cardSecondary = if (dark) Color.parseColor("#BBBBBB") else Color.parseColor("#555555")
                                 root.findViewById<TextView>(R.id.full_name).setTextColor(cardPrimary)
@@ -275,30 +303,34 @@ class MainActivity : ComponentActivity() {
                                 root.findViewById<TextView>(R.id.phone_number).setTextColor(cardPrimary)
                                 root.findViewById<TextView>(R.id.telegram_info).setTextColor(cardPrimary)
 
-                                // ── Bottom sheet text colors ──
+                                // Bottom sheet text colors
                                 val sheetPrimary = if (dark) Color.parseColor("#EEEEEE") else Color.parseColor("#555555")
                                 val sheetHint = if (dark) Color.parseColor("#AAAAAA") else Color.parseColor("#777777")
                                 root.findViewById<TextView>(R.id.email).setTextColor(sheetPrimary)
                                 root.findViewById<TextView>(R.id.about).setTextColor(sheetHint)
 
-                                // ── Button tint ──
+                                // All button tints (4 buttons)
                                 val btnColor = if (dark) Color.WHITE else Color.BLACK
                                 val btnTextColor = if (dark) Color.BLACK else Color.WHITE
                                 val btnColorList = android.content.res.ColorStateList.valueOf(btnColor)
-                                val shareBtn = root.findViewById<MaterialButton>(R.id.share_button)
-                                val qrBtn = root.findViewById<MaterialButton>(R.id.show_qr_button)
-                                shareBtn.backgroundTintList = btnColorList
-                                shareBtn.setTextColor(btnTextColor)
-                                qrBtn.backgroundTintList = btnColorList
-                                qrBtn.setTextColor(btnTextColor)
+                                listOf(
+                                    R.id.share_button,
+                                    R.id.share_phone_button,
+                                    R.id.share_email_button,
+                                    R.id.share_social_button
+                                ).forEach { id ->
+                                    root.findViewById<MaterialButton>(id).also { btn ->
+                                        btn.backgroundTintList = btnColorList
+                                        btn.setTextColor(btnTextColor)
+                                    }
+                                }
 
-                                // ── Logo swap ──
+                                // Logo
                                 root.findViewById<ImageView>(R.id.logo).setImageResource(
-                                    if (dark) R.drawable.logo_for_dark_theme
-                                    else R.drawable.logo_for_light_theme
+                                    if (dark) R.drawable.logo_for_dark_theme else R.drawable.logo_for_light_theme
                                 )
 
-                                // ── Data ──
+                                // Data
                                 root.findViewById<TextView>(R.id.full_name).text = fullNameState.value
                                 root.findViewById<TextView>(R.id.position).text = positionState.value
                                 root.findViewById<TextView>(R.id.phone_number).text = phoneState.value
@@ -306,18 +338,19 @@ class MainActivity : ComponentActivity() {
                                 root.findViewById<TextView>(R.id.telegram_info).text = telegramState.value
                                 root.findViewById<TextView>(R.id.about).text = aboutState.value
 
-                                val photoView = root.findViewById<ImageView>(R.id.photo)
                                 val uriStr = profileImageUriState.value
                                 if (uriStr != null) {
-                                    photoView.setImageURI(Uri.parse(uriStr))
+                                    root.findViewById<ImageView>(R.id.photo).setImageURI(Uri.parse(uriStr))
                                 }
                             }
                         )
 
-                        // Floating hamburger button (no header bar)
+                        // Floating hamburger — offset below status bar
                         IconButton(
                             onClick = { scope.launch { drawerState.open() } },
-                            modifier = Modifier.padding(4.dp)
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(top = 28.dp, start = 4.dp)
                         ) {
                             Icon(
                                 Icons.Default.Menu,
@@ -331,6 +364,75 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // ── Social sharing dialog ──────────────────────────────────────────────
+    private fun showSocialShareDialog(ownerName: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
+
+        if (networks.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Социальные сети")
+                .setMessage("Нет добавленных социальных сетей.\n\nОткройте меню и выберите «Добавить соц.сети».")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(android.R.layout.activity_list_item, null)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Выберите социальную сеть")
+            .create()
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 8, 32, 8)
+        }
+
+        // One button per social network
+        networks.forEach { network ->
+            val btn = MaterialButton(this).apply {
+                text = "${network.type}: ${network.username}"
+                setTextColor(Color.WHITE)
+                backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
+                cornerRadius = 48
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.bottomMargin = 16 }
+                setOnClickListener {
+                    dialog.dismiss()
+                    val url = SocialNetworkUtils.getNetworkUrl(network.type, network.username)
+                    showQrDialog(generateQrCode(url), "${network.type}")
+                }
+            }
+            content.addView(btn)
+        }
+
+        // "Share all" button
+        val allBtn = MaterialButton(this).apply {
+            text = "Поделиться всеми соц.сетями"
+            setTextColor(Color.BLACK)
+            backgroundTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            strokeColor = android.content.res.ColorStateList.valueOf(Color.BLACK)
+            strokeWidth = 3
+            cornerRadius = 48
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.topMargin = 8 }
+            setOnClickListener {
+                dialog.dismiss()
+                val qrText = SocialNetworkUtils.buildAllNetworksQrText(ownerName, networks)
+                showQrDialog(generateQrCode(qrText), "Все соц.сети")
+            }
+        }
+        content.addView(allBtn)
+
+        dialog.setView(content)
+        dialog.show()
+    }
+
+    // ── QR generation ─────────────────────────────────────────────────────
     private fun generateQrCode(data: String, size: Int = 512): Bitmap {
         val hints = mapOf(EncodeHintType.CHARACTER_SET to "UTF-8")
         val bitMatrix: BitMatrix = MultiFormatWriter().encode(
@@ -339,18 +441,16 @@ class MainActivity : ComponentActivity() {
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         for (x in 0 until size) {
             for (y in 0 until size) {
-                bmp.setPixel(
-                    x, y,
-                    if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
-                )
+                bmp.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
             }
         }
         return bmp
     }
 
-    private fun showQrDialog(qrBitmap: Bitmap) {
+    private fun showQrDialog(qrBitmap: Bitmap, title: String = "QR-код") {
         val dialog = Dialog(this)
         val view = layoutInflater.inflate(R.layout.dialog_qr_code, null)
+        view.findViewById<TextView>(R.id.qr_title).text = title
         view.findViewById<ImageView>(R.id.qrCodeImageView).setImageBitmap(qrBitmap)
         view.findViewById<MaterialButton>(R.id.closeButton).setOnClickListener { dialog.dismiss() }
         dialog.setContentView(view)

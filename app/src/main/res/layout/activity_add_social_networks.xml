@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/social_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/accent"
+        app:title="Социальные сети"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/white" />
+
+    <!-- Divider hint when empty -->
+    <TextView
+        android:id="@+id/empty_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Нет добавленных социальных сетей"
+        android:textAlignment="center"
+        android:textSize="15sp"
+        android:textColor="#999999"
+        android:paddingTop="32dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/networks_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp" />
+
+    </ScrollView>
+
+    <!-- Add and Save buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/add_network_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="+ Добавить социальную сеть"
+            android:textColor="@color/accent"
+            android:textSize="15sp"
+            app:backgroundTint="@color/white"
+            app:strokeColor="@color/accent"
+            app:strokeWidth="1dp"
+            app:cornerRadius="24dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/save_social_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Сохранить"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            app:backgroundTint="@color/accent"
+            app:cornerRadius="24dp" />
+
+    </LinearLayout>
+
+</LinearLayout>
