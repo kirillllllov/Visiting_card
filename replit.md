@@ -1,4 +1,4 @@
-# Visiting Card - Android App
+# Visiting Card — Android App
 
 ## Overview
 A native Android application ("Визитка") — a digital business card that lets users store, edit, and share their contact info, with QR code (vCard format) generation for easy contact sharing.
@@ -14,7 +14,7 @@ To build and run locally:
 
 ## Technology Stack
 - **Language**: Kotlin 2.0.21
-- **UI Framework**: Hybrid — Jetpack Compose (main screen shell) + XML Views (business card & bottom sheet)
+- **UI Framework**: Hybrid — Jetpack Compose (shell + drawer) + XML Views (business card & bottom sheet)
 - **Build System**: Gradle with Kotlin DSL and Version Catalogs
 - **Min SDK**: 24 (Android 7.0) | **Target/Compile SDK**: 35
 
@@ -28,55 +28,62 @@ To build and run locally:
 ```
 app/src/main/
 ├── java/com/example/visiting_card/ui/
-│   ├── MainActivity.kt       # Main screen — Compose shell + AndroidView XML card
-│   └── EditDataActivity.kt   # Edit profile info (View-based)
+│   ├── MainActivity.kt       # Main screen: Compose drawer shell + AndroidView XML card
+│   └── EditDataActivity.kt   # Edit profile info (View-based with MaterialToolbar)
 ├── res/
 │   ├── layout/
-│   │   ├── activity_main.xml      # Business card + BottomSheet layout
-│   │   ├── activity_edit_data.xml # Edit form with Material TextInputLayouts
+│   │   ├── activity_main.xml      # Business card + BottomSheet (CoordinatorLayout root)
+│   │   ├── activity_edit_data.xml # Edit form with MaterialToolbar + TextInputLayouts
 │   │   └── dialog_qr_code.xml     # QR code display dialog
 │   ├── drawable/
-│   │   ├── bottom_sheet_background.xml  # Rounded top corners
-│   │   ├── circle_background.xml        # Circular photo background
-│   │   ├── drag_handle.xml              # Bottom sheet drag indicator
-│   │   └── ic_arrow_back.xml            # Back arrow for EditDataActivity toolbar
+│   │   ├── bottom_sheet_background.xml       # White with rounded top corners
+│   │   ├── bottom_sheet_background_dark.xml  # Dark (#1E1E1E) with rounded top corners
+│   │   ├── circle_background.xml             # Circular photo background
+│   │   ├── drag_handle.xml                   # Bottom sheet drag indicator
+│   │   ├── ic_arrow_back.xml                 # Back arrow vector
+│   │   ├── logo_for_light_theme.png          # Logo shown on light background
+│   │   └── logo_for_dark_theme.png           # Logo shown on dark background
 │   ├── values/
-│   │   ├── colors.xml   # Colors including primary_red (#D32F2F)
-│   │   ├── styles.xml   # AppTheme (Material Components)
-│   │   └── themes.xml   # Theme.Visiting_card (Material3, for MainActivity)
+│   │   ├── colors.xml   # Accent = #000000 (black); light/dark theme color tokens
+│   │   ├── styles.xml   # AppTheme (MaterialComponents) with black accent
+│   │   └── themes.xml   # Theme.Visiting_card (Material3 DayNight, for MainActivity)
 │   └── font/garamond_classico_sc.ttf
 └── AndroidManifest.xml
 ```
 
 ## Features
-- Business card display (name, position, phone, Telegram)
-- Bottom sheet with profile photo, email, interests, skills, action buttons
-- Edit profile data stored in SharedPreferences (prefs: `"VisitingCardData"`)
-- Profile photo selection from gallery
-- QR code generation (vCard 3.0 format)
-- Share contact info via system share sheet
-- Clickable phone (dial), email (compose), Telegram (open app) links
-- Dark/Light theme toggle via Compose drawer
+- Business card display (name, position, phone, Telegram) in a CardView
+- Floating hamburger menu button (no top bar) opens Compose ModalNavigationDrawer
+- Bottom sheet (NestedScrollView) slides up with: photo, email, about text, Share and QR buttons
+- Edit profile stored in SharedPreferences (prefs: `"VisitingCardData"`)
+- On first launch (empty name), EditDataActivity opens automatically
+- Profile photo from gallery (via photo picker)
+- QR code generation (vCard 3.0 format via ZXing)
+- Share contact text via system share sheet
+- Clickable phone (dial), email (compose), Telegram (open app) fields
+- Full light/dark theme toggle — affects Compose drawer AND XML views (background, card, fonts, buttons, logo)
 
 ## SharedPreferences Contract
-All data uses prefs name `"VisitingCardData"` with keys:
-- `fullName`, `position`, `phone`, `email`, `telegram`, `interests`, `skills`, `profile_image_uri`
+All data uses prefs name `"VisitingCardData"` with keys (all in `EditDataActivity.Companion`):
+- `fullName`, `position`, `phone`, `email`, `telegram`, `about`, `profile_image_uri`
 
-## Bugs Fixed
-1. **SharedPreferences mismatch** — EditDataActivity used wrong prefs name (`card_prefs`) and key (`full_name`); now both activities use a shared companion constants.
-2. **Invalid color `#E000`** — All buttons now use valid `@color/primary_red` (#D32F2F).
-3. **UI never updated after edit** — Replaced local `var` fields with `MutableState`; AndroidView now has a proper `update` lambda driven by Compose recomposition.
-4. **extractUsername empty string** — Now checks `isNullOrEmpty()` before opening Telegram URL.
-5. **Duplicate Material dependency** — Removed conflicting 1.4.0 and 1.10.0 entries; uses single 1.12.0.
-6. **Redundant DrawerLayout/Toolbar in XML** — Removed; Compose's ModalNavigationDrawer and Scaffold TopAppBar handle these.
-7. **Dead code** — Removed unused `QrCodeDialog.kt` DialogFragment.
-8. **vCard field name** — Changed `N:` to `FN:` for proper display name in vCard 3.0.
-9. **Bitmap config** — Changed `RGB_565` to `ARGB_8888` for proper QR code rendering.
+## Theme System
+`isDarkTheme: MutableState<Boolean>` drives both layers:
+- **Compose layer**: `MaterialTheme(colorScheme = if (dark) darkColors else lightColors)`
+- **XML layer**: `AndroidView` `update` lambda applies colors programmatically:
+  - Root background, CardView background, BottomSheet background (swaps drawable)
+  - Card text colors (primary/secondary)
+  - BottomSheet text colors
+  - Button `backgroundTintList` + text color
+  - Logo `setImageResource` (light ↔ dark logo)
 
-## UI Improvements
-- MaterialButton (rounded, red) replaces raw Button with broken backgroundTint
-- TextInputLayout.OutlinedBox fields with proper inputType in edit screen
-- Profile photo moved to top of edit screen with helper text
-- MaterialToolbar with back arrow added to EditDataActivity
-- BottomSheet is now a NestedScrollView (scrollable) instead of fixed-height LinearLayout
-- Improved spacing and typography throughout
+## Bug History (resolved)
+1. SharedPreferences name/key mismatch between activities → unified via companion constants
+2. Invalid button color `#E000` → replaced with `@color/accent` (#000000)
+3. UI never updated post-edit → Compose `MutableState` + `AndroidView` `update` lambda
+4. `extractUsername` not checking empty → `isNullOrEmpty()` added
+5. Duplicate Material dependency → consolidated to 1.12.0
+6. Redundant DrawerLayout + Toolbar in XML → removed; Compose handles both
+7. Dead `QrCodeDialog.kt` DialogFragment → deleted
+8. vCard used `N:` instead of `FN:` → fixed
+9. Bitmap config `RGB_565` → `ARGB_8888`

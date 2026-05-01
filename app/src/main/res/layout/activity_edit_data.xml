@@ -9,7 +9,7 @@
         android:id="@+id/edit_toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/primary_red"
+        android:background="@color/accent"
         app:title="Редактировать данные"
         app:titleTextColor="@color/white"
         app:navigationIcon="@drawable/ic_arrow_back"
@@ -136,39 +136,20 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Interests -->
+            <!-- О себе (replaces Интересы + Навыки) -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:hint="Интересы"
+                android:hint="О себе"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/interests_input"
+                    android:id="@+id/about_input"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textMultiLine|textCapSentences"
-                    android:minLines="2"
-                    android:gravity="top"
-                    android:imeOptions="actionNext" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Skills -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="Навыки"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/skills_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textMultiLine|textCapSentences"
-                    android:minLines="2"
+                    android:minLines="3"
                     android:gravity="top"
                     android:imeOptions="actionDone" />
 
@@ -184,7 +165,7 @@
                 android:text="Сохранить"
                 android:textColor="@color/white"
                 android:textSize="16sp"
-                app:backgroundTint="@color/primary_red"
+                app:backgroundTint="@color/accent"
                 app:cornerRadius="24dp" />
 
         </LinearLayout>

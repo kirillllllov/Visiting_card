@@ -24,8 +24,7 @@ class EditDataActivity : ComponentActivity() {
         const val KEY_PHONE = "phone"
         const val KEY_EMAIL = "email"
         const val KEY_TELEGRAM = "telegram"
-        const val KEY_INTERESTS = "interests"
-        const val KEY_SKILLS = "skills"
+        const val KEY_ABOUT = "about"
         const val KEY_PROFILE_IMAGE_URI = "profile_image_uri"
     }
 
@@ -41,8 +40,7 @@ class EditDataActivity : ComponentActivity() {
         val phoneInput = findViewById<TextInputEditText>(R.id.phone_input)
         val emailInput = findViewById<TextInputEditText>(R.id.email_input)
         val telegramInput = findViewById<TextInputEditText>(R.id.telegram_input)
-        val interestsInput = findViewById<TextInputEditText>(R.id.interests_input)
-        val skillsInput = findViewById<TextInputEditText>(R.id.skills_input)
+        val aboutInput = findViewById<TextInputEditText>(R.id.about_input)
         val photoView = findViewById<ImageView>(R.id.edit_photo)
         val saveButton = findViewById<MaterialButton>(R.id.save_button)
 
@@ -53,8 +51,7 @@ class EditDataActivity : ComponentActivity() {
         phoneInput.setText(sharedPref.getString(KEY_PHONE, ""))
         emailInput.setText(sharedPref.getString(KEY_EMAIL, ""))
         telegramInput.setText(sharedPref.getString(KEY_TELEGRAM, ""))
-        interestsInput.setText(sharedPref.getString(KEY_INTERESTS, ""))
-        skillsInput.setText(sharedPref.getString(KEY_SKILLS, ""))
+        aboutInput.setText(sharedPref.getString(KEY_ABOUT, ""))
 
         val savedImageUri = sharedPref.getString(KEY_PROFILE_IMAGE_URI, null)
         savedImageUri?.let {
@@ -83,8 +80,7 @@ class EditDataActivity : ComponentActivity() {
             val phone = phoneInput.text.toString().trim()
             val email = emailInput.text.toString().trim()
             val telegram = telegramInput.text.toString().trim()
-            val interests = interestsInput.text.toString().trim()
-            val skills = skillsInput.text.toString().trim()
+            val about = aboutInput.text.toString().trim()
 
             with(sharedPref.edit()) {
                 putString(KEY_FULL_NAME, fullName)
@@ -92,8 +88,7 @@ class EditDataActivity : ComponentActivity() {
                 putString(KEY_PHONE, phone)
                 putString(KEY_EMAIL, email)
                 putString(KEY_TELEGRAM, telegram)
-                putString(KEY_INTERESTS, interests)
-                putString(KEY_SKILLS, skills)
+                putString(KEY_ABOUT, about)
                 selectedImageUri?.let { putString(KEY_PROFILE_IMAGE_URI, it.toString()) }
                 apply()
             }
@@ -104,8 +99,7 @@ class EditDataActivity : ComponentActivity() {
                 putExtra(KEY_PHONE, phone)
                 putExtra(KEY_EMAIL, email)
                 putExtra(KEY_TELEGRAM, telegram)
-                putExtra(KEY_INTERESTS, interests)
-                putExtra(KEY_SKILLS, skills)
+                putExtra(KEY_ABOUT, about)
                 selectedImageUri?.let { putExtra(KEY_PROFILE_IMAGE_URI, it.toString()) }
             }
 

@@ -2,9 +2,9 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/card_background">
+    android:layout_height="match_parent">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -20,7 +20,6 @@
             android:layout_marginBottom="24dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="10dp"
-            app:cardBackgroundColor="@color/card_background"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -40,7 +39,6 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/garamond_classico_sc"
                     android:text="+7 (999) 123-45-67"
-                    android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:clickable="true"
                     android:focusable="true"
@@ -53,7 +51,7 @@
                     android:layout_width="93dp"
                     android:layout_height="19dp"
                     android:contentDescription="Company Logo"
-                    android:src="@drawable/logo"
+                    android:src="@drawable/logo_for_light_theme"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
@@ -75,8 +73,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/garamond_classico_sc"
                         android:gravity="center"
-                        android:text="Patrick BATEMAN"
-                        android:textColor="@color/text_primary"
+                        android:text="Имя Фамилия"
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
@@ -86,8 +83,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/garamond_classico_sc"
                         android:gravity="center"
-                        android:text="Vice President"
-                        android:textColor="@color/text_secondary"
+                        android:text="Должность"
                         android:textSize="18sp" />
 
                 </LinearLayout>
@@ -99,8 +95,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
                     android:fontFamily="@font/garamond_classico_sc"
-                    android:text="@psychoamerican"
-                    android:textColor="@color/text_primary"
+                    android:text="@username"
                     android:textSize="16sp"
                     android:clickable="true"
                     android:focusable="true"
@@ -118,7 +113,7 @@
     <androidx.core.widget.NestedScrollView
         android:id="@+id/bottomSheet"
         android:layout_width="match_parent"
-        android:layout_height="520dp"
+        android:layout_height="480dp"
         android:layout_gravity="bottom"
         android:background="@drawable/bottom_sheet_background"
         android:elevation="12dp"
@@ -159,34 +154,21 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="patrick.bateman@dorseygroup.com"
+                android:text="email@example.com"
                 android:textAlignment="center"
                 android:textSize="16sp"
-                android:textColor="@color/text_secondary"
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- Interests -->
+            <!-- About -->
             <TextView
-                android:id="@+id/interests"
+                android:id="@+id/about"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Интересы: мода, финансы."
+                android:text=""
                 android:textAlignment="center"
-                android:textSize="15sp"
-                android:textColor="@color/text_hint" />
-
-            <!-- Skills -->
-            <TextView
-                android:id="@+id/skills"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Навыки: организованность и хладнокровие."
-                android:textAlignment="center"
-                android:textSize="15sp"
-                android:textColor="@color/text_hint" />
+                android:textSize="15sp" />
 
             <!-- Share button -->
             <com.google.android.material.button.MaterialButton
@@ -197,7 +179,7 @@
                 android:text="Поделиться"
                 android:textColor="@color/white"
                 android:textSize="16sp"
-                app:backgroundTint="@color/primary_red"
+                app:backgroundTint="@color/accent"
                 app:cornerRadius="24dp" />
 
             <!-- Show QR button -->
@@ -209,7 +191,7 @@
                 android:text="Показать QR-код"
                 android:textColor="@color/white"
                 android:textSize="16sp"
-                app:backgroundTint="@color/primary_red"
+                app:backgroundTint="@color/accent"
                 app:cornerRadius="24dp" />
 
         </LinearLayout>

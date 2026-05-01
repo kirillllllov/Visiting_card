@@ -7,8 +7,28 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="primary_red">#D32F2F</color>
-    <color name="primary_red_dark">#B71C1C</color>
+
+    <!-- Accent: black -->
+    <color name="accent">#000000</color>
+    <color name="accent_dark">#222222</color>
+
+    <!-- Light theme -->
+    <color name="bg_light">#FFFFFF</color>
+    <color name="card_bg_light">#FFFFFF</color>
+    <color name="text_primary_light">#000000</color>
+    <color name="text_secondary_light">#555555</color>
+    <color name="text_hint_light">#777777</color>
+
+    <!-- Dark theme -->
+    <color name="bg_dark">#121212</color>
+    <color name="card_bg_dark">#1E1E1E</color>
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary_dark">#BBBBBB</color>
+    <color name="text_hint_dark">#AAAAAA</color>
+
+    <!-- Aliases used in styles -->
+    <color name="primary_red">#000000</color>
+    <color name="primary_red_dark">#222222</color>
     <color name="card_background">#FFFFFF</color>
     <color name="text_primary">#212121</color>
     <color name="text_secondary">#555555</color>
