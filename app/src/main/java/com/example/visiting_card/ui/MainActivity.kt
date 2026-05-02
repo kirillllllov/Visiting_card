@@ -10,6 +10,7 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -20,6 +21,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.cardview.widget.CardView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -50,6 +53,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.common.BitMatrix
 import kotlinx.coroutines.launch
+import kotlin.math.atan2
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -63,18 +67,18 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         // ── Compose state ──────────────────────────────────────────────────
-        val fullNameState         = mutableStateOf(prefs.getString(KEY_FULL_NAME, "") ?: "")
-        val positionState         = mutableStateOf(prefs.getString(KEY_POSITION, "") ?: "")
-        val phoneState            = mutableStateOf(prefs.getString(KEY_PHONE, "") ?: "")
-        val aboutState            = mutableStateOf(prefs.getString(KEY_ABOUT, "") ?: "")
-        val profileImageUriState  = mutableStateOf(prefs.getString(KEY_PROFILE_IMAGE_URI, null))
-        val showPositionState     = mutableStateOf(prefs.getBoolean(KEY_SHOW_POSITION, true))
-        val showPhoneState        = mutableStateOf(prefs.getBoolean(KEY_SHOW_PHONE, true))
-        val showLogoState         = mutableStateOf(prefs.getBoolean(KEY_SHOW_LOGO, true))
-        val showSocialState       = mutableStateOf(prefs.getBoolean(KEY_SHOW_SOCIAL, false))
-        val selectedSocialIdx     = mutableStateOf(prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1))
-        val isDarkTheme           = mutableStateOf(prefs.getBoolean(KEY_THEME_DARK, false))
-        val showSettingsDialog    = mutableStateOf(false)
+        val fullNameState        = mutableStateOf(prefs.getString(KEY_FULL_NAME, "") ?: "")
+        val positionState        = mutableStateOf(prefs.getString(KEY_POSITION, "") ?: "")
+        val phoneState           = mutableStateOf(prefs.getString(KEY_PHONE, "") ?: "")
+        val aboutState           = mutableStateOf(prefs.getString(KEY_ABOUT, "") ?: "")
+        val profileImageUriState = mutableStateOf(prefs.getString(KEY_PROFILE_IMAGE_URI, null))
+        val showPositionState    = mutableStateOf(prefs.getBoolean(KEY_SHOW_POSITION, true))
+        val showPhoneState       = mutableStateOf(prefs.getBoolean(KEY_SHOW_PHONE, true))
+        val showLogoState        = mutableStateOf(prefs.getBoolean(KEY_SHOW_LOGO, true))
+        val showSocialState      = mutableStateOf(prefs.getBoolean(KEY_SHOW_SOCIAL, false))
+        val selectedSocialIdx    = mutableStateOf(prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1))
+        val isDarkTheme          = mutableStateOf(prefs.getBoolean(KEY_THEME_DARK, false))
+        val showSettingsDialog   = mutableStateOf(false)
 
         // ── Photo picker ───────────────────────────────────────────────────
         pickImageLauncher = registerForActivityResult(
@@ -97,11 +101,6 @@ class MainActivity : ComponentActivity() {
                 phoneState.value           = prefs.getString(KEY_PHONE, "") ?: ""
                 aboutState.value           = prefs.getString(KEY_ABOUT, "") ?: ""
                 profileImageUriState.value = prefs.getString(KEY_PROFILE_IMAGE_URI, null)
-                showPositionState.value    = prefs.getBoolean(KEY_SHOW_POSITION, true)
-                showPhoneState.value       = prefs.getBoolean(KEY_SHOW_PHONE, true)
-                showLogoState.value        = prefs.getBoolean(KEY_SHOW_LOGO, true)
-                showSocialState.value      = prefs.getBoolean(KEY_SHOW_SOCIAL, false)
-                selectedSocialIdx.value    = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
             }
         }
 
@@ -112,20 +111,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val darkColors = darkColorScheme(
-                primary       = androidx.compose.ui.graphics.Color.White,
-                onPrimary     = androidx.compose.ui.graphics.Color.Black,
-                background    = androidx.compose.ui.graphics.Color(0xFF121212),
-                surface       = androidx.compose.ui.graphics.Color(0xFF1E1E1E),
-                onBackground  = androidx.compose.ui.graphics.Color.White,
-                onSurface     = androidx.compose.ui.graphics.Color.White
+                primary      = androidx.compose.ui.graphics.Color.White,
+                onPrimary    = androidx.compose.ui.graphics.Color.Black,
+                background   = androidx.compose.ui.graphics.Color(0xFF121212),
+                surface      = androidx.compose.ui.graphics.Color(0xFF1E1E1E),
+                onBackground = androidx.compose.ui.graphics.Color.White,
+                onSurface    = androidx.compose.ui.graphics.Color.White
             )
             val lightColors = lightColorScheme(
-                primary       = androidx.compose.ui.graphics.Color.Black,
-                onPrimary     = androidx.compose.ui.graphics.Color.White,
-                background    = androidx.compose.ui.graphics.Color.White,
-                surface       = androidx.compose.ui.graphics.Color.White,
-                onBackground  = androidx.compose.ui.graphics.Color.Black,
-                onSurface     = androidx.compose.ui.graphics.Color.Black
+                primary      = androidx.compose.ui.graphics.Color.Black,
+                onPrimary    = androidx.compose.ui.graphics.Color.White,
+                background   = androidx.compose.ui.graphics.Color.White,
+                surface      = androidx.compose.ui.graphics.Color.White,
+                onBackground = androidx.compose.ui.graphics.Color.Black,
+                onSurface    = androidx.compose.ui.graphics.Color.Black
             )
 
             MaterialTheme(colorScheme = if (isDarkTheme.value) darkColors else lightColors) {
@@ -139,25 +138,25 @@ class MainActivity : ComponentActivity() {
 
                 // ── Settings dialog ────────────────────────────────────────
                 if (showSettingsDialog.value) {
+                    val scrollState = rememberScrollState()
                     AlertDialog(
                         onDismissRequest = { showSettingsDialog.value = false },
                         title = { Text("Настройки") },
                         text = {
-                            Column {
+                            Column(modifier = Modifier.verticalScroll(scrollState)) {
+
+                                // ── Theme ──────────────────────────────────
                                 Text(
                                     "Тема оформления",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.padding(bottom = 8.dp)
+                                    style    = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(bottom = 4.dp)
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isDarkTheme.value = false
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
-                                        }
-                                        .padding(vertical = 6.dp)
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        isDarkTheme.value = false
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
+                                    }.padding(vertical = 4.dp)
                                 ) {
                                     RadioButton(
                                         selected = !isDarkTheme.value,
@@ -166,18 +165,15 @@ class MainActivity : ComponentActivity() {
                                             prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
                                         }
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(Modifier.width(6.dp))
                                     Text("Светлая тема")
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isDarkTheme.value = true
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
-                                        }
-                                        .padding(vertical = 6.dp)
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        isDarkTheme.value = true
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
+                                    }.padding(vertical = 4.dp)
                                 ) {
                                     RadioButton(
                                         selected = isDarkTheme.value,
@@ -186,8 +182,89 @@ class MainActivity : ComponentActivity() {
                                             prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
                                         }
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(Modifier.width(6.dp))
                                     Text("Тёмная тема")
+                                }
+
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider()
+                                Spacer(Modifier.height(10.dp))
+
+                                // ── Visibility ─────────────────────────────
+                                Text(
+                                    "Отображение на визитке",
+                                    style    = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+
+                                @Composable
+                                fun visRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            onToggle(!checked)
+                                        }.padding(vertical = 2.dp)
+                                    ) {
+                                        Checkbox(checked = checked, onCheckedChange = onToggle)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(label)
+                                    }
+                                }
+
+                                visRow("Должность", showPositionState.value) { v ->
+                                    showPositionState.value = v
+                                    prefs.edit().putBoolean(KEY_SHOW_POSITION, v).apply()
+                                }
+                                visRow("Номер телефона", showPhoneState.value) { v ->
+                                    showPhoneState.value = v
+                                    prefs.edit().putBoolean(KEY_SHOW_PHONE, v).apply()
+                                }
+                                visRow("Логотип", showLogoState.value) { v ->
+                                    showLogoState.value = v
+                                    prefs.edit().putBoolean(KEY_SHOW_LOGO, v).apply()
+                                }
+                                visRow("Социальная сеть", showSocialState.value) { v ->
+                                    showSocialState.value = v
+                                    prefs.edit().putBoolean(KEY_SHOW_SOCIAL, v).apply()
+                                }
+
+                                // Social network selection — load unconditionally (Compose rules)
+                                val dialogNetworks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
+                                if (showSocialState.value) {
+                                    val networks = dialogNetworks
+                                    Spacer(Modifier.height(6.dp))
+                                    if (networks.isEmpty()) {
+                                        Text(
+                                            "Нет добавленных соц.сетей.\nДобавьте через меню «Добавить соц.сети».",
+                                            style    = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            "Выберите соц.сеть для визитки:",
+                                            style    = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                                        )
+                                        networks.forEachIndexed { idx, network ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth().clickable {
+                                                    selectedSocialIdx.value = idx
+                                                    prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
+                                                }.padding(vertical = 2.dp, horizontal = 8.dp)
+                                            ) {
+                                                RadioButton(
+                                                    selected = selectedSocialIdx.value == idx,
+                                                    onClick  = {
+                                                        selectedSocialIdx.value = idx
+                                                        prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
+                                                    }
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("${network.type}: ${network.username}")
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -205,7 +282,6 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Edit card info
                             Text(
                                 "Изменить информацию на визитке",
                                 modifier = Modifier
@@ -221,7 +297,6 @@ class MainActivity : ComponentActivity() {
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                            // Add social networks
                             Text(
                                 "Добавить соц.сети",
                                 modifier = Modifier
@@ -237,7 +312,6 @@ class MainActivity : ComponentActivity() {
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                            // Settings (theme)
                             Text(
                                 "Настройки",
                                 modifier = Modifier
@@ -258,19 +332,28 @@ class MainActivity : ComponentActivity() {
                             factory  = { ctx ->
                                 val root = layoutInflater.inflate(R.layout.activity_main, null)
 
-                                // ── Bottom sheet setup ─────────────────────
+                                // ── Bottom sheet ───────────────────────────
                                 val bottomSheet = root.findViewById<View>(R.id.bottomSheet)
                                 val peekPx = (60 * ctx.resources.displayMetrics.density).toInt()
                                 bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                    state            = BottomSheetBehavior.STATE_COLLAPSED
-                                    peekHeight       = peekPx
-                                    isHideable       = false
-                                    halfExpandedRatio = 0.45f
+                                    state             = BottomSheetBehavior.STATE_COLLAPSED
+                                    peekHeight        = peekPx
+                                    isHideable        = false
+                                    halfExpandedRatio  = 0.45f
                                 }
 
-                                // ── Business card: pinch-to-zoom + tap ─────
+                                // ── Business card: pinch/rotate/tap ───────
                                 val businessCard = root.findViewById<CardView>(R.id.business_card)
                                 var scaleFactor  = 1f
+                                var prevAngle    = Float.NaN
+                                var cardRotation = 0f
+
+                                // Helper: angle between two touch points in degrees
+                                val fingerAngle: (MotionEvent) -> Float = { ev ->
+                                    val dx = ev.getX(0) - ev.getX(1)
+                                    val dy = ev.getY(0) - ev.getY(1)
+                                    Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                                }
 
                                 val scaleDetector = ScaleGestureDetector(ctx,
                                     object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -298,18 +381,51 @@ class MainActivity : ComponentActivity() {
                                 businessCard.setOnTouchListener { v, event ->
                                     scaleDetector.onTouchEvent(event)
                                     gestureDetector.onTouchEvent(event)
+
                                     when (event.actionMasked) {
-                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                            if (scaleFactor != 1f) {
-                                                scaleFactor = 1f
-                                                v.animate().scaleX(1f).scaleY(1f).setDuration(250).start()
+                                        MotionEvent.ACTION_DOWN -> {
+                                            // Enable hardware layer for smooth transforms
+                                            v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                                        }
+                                        MotionEvent.ACTION_POINTER_DOWN -> {
+                                            if (event.pointerCount == 2) {
+                                                prevAngle = fingerAngle(event)
                                             }
+                                        }
+                                        MotionEvent.ACTION_MOVE -> {
+                                            if (event.pointerCount >= 2 && !prevAngle.isNaN()) {
+                                                val angle = fingerAngle(event)
+                                                val delta = angle - prevAngle
+                                                // Only apply small deltas to avoid jumps
+                                                if (delta in -30f..30f) {
+                                                    cardRotation = (cardRotation + delta).coerceIn(-35f, 35f)
+                                                    v.rotation = cardRotation
+                                                }
+                                                prevAngle = angle
+                                            }
+                                        }
+                                        MotionEvent.ACTION_POINTER_UP -> {
+                                            prevAngle = Float.NaN
+                                        }
+                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                            prevAngle = Float.NaN
+                                            val needsReset = scaleFactor != 1f || cardRotation != 0f
+                                            scaleFactor  = 1f
+                                            cardRotation = 0f
+                                            v.animate()
+                                                .scaleX(1f).scaleY(1f).rotation(0f)
+                                                .setDuration(if (needsReset) 300L else 0L)
+                                                .setInterpolator(DecelerateInterpolator())
+                                                .withEndAction {
+                                                    v.setLayerType(View.LAYER_TYPE_NONE, null)
+                                                }
+                                                .start()
                                         }
                                     }
                                     true
                                 }
 
-                                // ── Phone number → QR (add to contacts) ───
+                                // ── Phone → QR vCard ──────────────────────
                                 root.findViewById<TextView>(R.id.phone_number).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
@@ -317,7 +433,8 @@ class MainActivity : ComponentActivity() {
                                     showQrDialog(generateQrCode(vCard), "Поделиться номером")
                                 }
 
-                                // ── Telegram/social info → open link ───────
+                                // ── Social info → QR for that network ─────
+                                // Item 1: same behaviour as selecting a network in "Поделиться соц.сетями"
                                 root.findViewById<TextView>(R.id.telegram_info).setOnClickListener {
                                     val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                     val idx      = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
@@ -325,11 +442,11 @@ class MainActivity : ComponentActivity() {
                                         val url = SocialNetworkUtils.getNetworkUrl(
                                             networks[idx].type, networks[idx].username
                                         )
-                                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        showQrDialog(generateQrCode(url), networks[idx].type)
                                     }
                                 }
 
-                                // ── Photo → pick from gallery ──────────────
+                                // ── Photo → gallery ────────────────────────
                                 root.findViewById<ImageView>(R.id.photo).setOnClickListener {
                                     pickImageLauncher.launch(
                                         Intent(Intent.ACTION_PICK).apply { type = "image/*" }
@@ -344,7 +461,7 @@ class MainActivity : ComponentActivity() {
                                     val about = root.findViewById<TextView>(R.id.about).text
                                     val shareText = buildString {
                                         appendLine("👤 $name")
-                                        if (pos.isNotEmpty()) appendLine("💼 $pos")
+                                        if (pos.isNotEmpty())   appendLine("💼 $pos")
                                         if (phone.isNotEmpty()) appendLine("📞 $phone")
                                         if (about.isNotEmpty()) append("ℹ️ $about")
                                     }
@@ -356,7 +473,7 @@ class MainActivity : ComponentActivity() {
                                     ))
                                 }
 
-                                // ── Share phone → QR vCard ────────────────
+                                // ── Share phone QR ──────────────────────────
                                 root.findViewById<MaterialButton>(R.id.share_phone_button).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
@@ -364,14 +481,14 @@ class MainActivity : ComponentActivity() {
                                     showQrDialog(generateQrCode(vCard), "Поделиться номером")
                                 }
 
-                                // ── Share email → QR mailto ────────────────
+                                // ── Share email QR ──────────────────────────
                                 root.findViewById<MaterialButton>(R.id.share_email_button).setOnClickListener {
                                     val email = prefs.getString(KEY_EMAIL, "") ?: ""
                                     if (email.isBlank()) return@setOnClickListener
                                     showQrDialog(generateQrCode("mailto:$email"), "Поделиться email")
                                 }
 
-                                // ── Share social networks ──────────────────
+                                // ── Share social networks ───────────────────
                                 root.findViewById<MaterialButton>(R.id.share_social_button).setOnClickListener {
                                     val name = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     showSocialShareDialog(name)
@@ -382,39 +499,30 @@ class MainActivity : ComponentActivity() {
                             update = { root ->
                                 val dark = isDarkTheme.value
 
-                                // Background
                                 root.setBackgroundColor(
                                     if (dark) Color.parseColor("#121212") else Color.WHITE
                                 )
-
-                                // Bottom sheet background
                                 root.findViewById<View>(R.id.bottomSheet).setBackgroundResource(
                                     if (dark) R.drawable.bottom_sheet_background_dark
                                     else R.drawable.bottom_sheet_background
                                 )
-
-                                // Card background
                                 root.findViewById<CardView>(R.id.business_card)
                                     .setCardBackgroundColor(
                                         if (dark) Color.parseColor("#1E1E1E") else Color.WHITE
                                     )
 
-                                // Card text colors
                                 val cardPrimary   = if (dark) Color.WHITE else Color.BLACK
                                 val cardSecondary = if (dark) Color.parseColor("#BBBBBB")
                                 else Color.parseColor("#555555")
-
                                 root.findViewById<TextView>(R.id.full_name).setTextColor(cardPrimary)
                                 root.findViewById<TextView>(R.id.position).setTextColor(cardSecondary)
                                 root.findViewById<TextView>(R.id.phone_number).setTextColor(cardPrimary)
                                 root.findViewById<TextView>(R.id.telegram_info).setTextColor(cardPrimary)
 
-                                // Bottom sheet text colors
                                 val sheetHint = if (dark) Color.parseColor("#AAAAAA")
                                 else Color.parseColor("#777777")
                                 root.findViewById<TextView>(R.id.about).setTextColor(sheetHint)
 
-                                // Button tints
                                 val btnBg   = if (dark) Color.WHITE else Color.BLACK
                                 val btnText = if (dark) Color.BLACK else Color.WHITE
                                 val btnTint = android.content.res.ColorStateList.valueOf(btnBg)
@@ -430,7 +538,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                // Logo
                                 root.findViewById<ImageView>(R.id.logo).setImageResource(
                                     if (dark) R.drawable.logo_for_dark_theme
                                     else R.drawable.logo_for_light_theme
@@ -440,10 +547,10 @@ class MainActivity : ComponentActivity() {
                                 root.findViewById<TextView>(R.id.full_name).text = fullNameState.value
                                 root.findViewById<TextView>(R.id.about).text     = aboutState.value
 
-                                // ── Visibility toggles ─────────────────────
-                                val posView   = root.findViewById<TextView>(R.id.position)
-                                val phoneView = root.findViewById<TextView>(R.id.phone_number)
-                                val logoView  = root.findViewById<ImageView>(R.id.logo)
+                                // ── Visibility ─────────────────────────────
+                                val posView    = root.findViewById<TextView>(R.id.position)
+                                val phoneView  = root.findViewById<TextView>(R.id.phone_number)
+                                val logoView   = root.findViewById<ImageView>(R.id.logo)
                                 val socialView = root.findViewById<TextView>(R.id.telegram_info)
 
                                 posView.text = positionState.value
@@ -467,7 +574,6 @@ class MainActivity : ComponentActivity() {
                                     socialView.visibility = View.GONE
                                 }
 
-                                // Profile photo
                                 val uriStr = profileImageUriState.value
                                 if (uriStr != null) {
                                     root.findViewById<ImageView>(R.id.photo)
@@ -476,7 +582,7 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        // Floating hamburger — offset below status bar
+                        // Floating hamburger — below status bar
                         IconButton(
                             onClick  = { scope.launch { drawerState.open() } },
                             modifier = Modifier
@@ -534,6 +640,7 @@ class MainActivity : ComponentActivity() {
             })
         }
 
+        // Item 4: "Share all" → opens note-taking app with plain text (not vCard/Contacts)
         content.addView(MaterialButton(this).apply {
             text  = "Поделиться всеми соц.сетями"
             setTextColor(Color.BLACK)
@@ -547,8 +654,19 @@ class MainActivity : ComponentActivity() {
             ).also { it.topMargin = (6 * density).toInt() }
             setOnClickListener {
                 dialog.dismiss()
-                val qrText = SocialNetworkUtils.buildAllNetworksQrText(ownerName, networks)
-                showQrDialog(generateQrCode(qrText), "Все соц.сети")
+                val text = buildString {
+                    appendLine("Социальные сети — $ownerName:")
+                    networks.forEach { n -> appendLine("${n.type}: ${n.username}") }
+                }.trim()
+                // Share as plain text so the user can choose their notes app
+                startActivity(Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text)
+                        putExtra(Intent.EXTRA_TITLE, "Социальные сети")
+                    },
+                    "Добавить в заметки"
+                ))
             }
         })
 

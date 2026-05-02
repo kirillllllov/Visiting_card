@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/eci_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -28,8 +29,9 @@
             android:orientation="vertical"
             android:padding="20dp">
 
-            <!-- Photo -->
+            <!-- Photo hint -->
             <TextView
+                android:id="@+id/eci_photo_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Фото профиля (нажмите для изменения)"
@@ -51,8 +53,9 @@
                 android:focusable="true"
                 android:contentDescription="Фото профиля" />
 
-            <!-- ── Данные визитки ── -->
+            <!-- Section header -->
             <TextView
+                android:id="@+id/eci_section_header_data"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Данные визитки"
@@ -64,6 +67,7 @@
                 android:layout_marginBottom="8dp" />
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/eci_til_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="ФИО"
@@ -77,6 +81,7 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/eci_til_position"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -91,6 +96,7 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/eci_til_phone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -105,6 +111,7 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/eci_til_about"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -119,89 +126,6 @@
                     android:gravity="top"
                     android:imeOptions="actionDone" />
             </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- ── Отображение на визитке ── -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#EEEEEE"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Отображение на визитке"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="#777777"
-                android:textAllCaps="true"
-                android:layout_marginBottom="4dp" />
-
-            <CheckBox
-                android:id="@+id/cb_show_position"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Показывать должность"
-                android:textSize="16sp"
-                android:paddingStart="8dp"
-                android:buttonTint="@color/accent" />
-
-            <CheckBox
-                android:id="@+id/cb_show_phone"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Показывать номер телефона"
-                android:textSize="16sp"
-                android:paddingStart="8dp"
-                android:buttonTint="@color/accent" />
-
-            <CheckBox
-                android:id="@+id/cb_show_logo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Показывать логотип"
-                android:textSize="16sp"
-                android:paddingStart="8dp"
-                android:buttonTint="@color/accent" />
-
-            <CheckBox
-                android:id="@+id/cb_show_social"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Показывать соц.сеть"
-                android:textSize="16sp"
-                android:paddingStart="8dp"
-                android:buttonTint="@color/accent" />
-
-            <!-- Social network selection (visible only when show_social is checked) -->
-            <LinearLayout
-                android:id="@+id/social_selection_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="4dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/social_no_networks_hint"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Нет добавленных соц.сетей. Добавьте через «Добавить соц.сети» в меню."
-                    android:textSize="13sp"
-                    android:textColor="#999999"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp"
-                    android:visibility="gone" />
-
-                <RadioGroup
-                    android:id="@+id/social_radio_group"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:visibility="gone" />
-
-            </LinearLayout>
 
             <!-- Save button -->
             <com.google.android.material.button.MaterialButton
