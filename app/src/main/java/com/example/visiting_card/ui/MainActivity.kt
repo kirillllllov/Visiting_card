@@ -1,10 +1,18 @@
 package com.example.visiting_card.ui
 
 import android.app.Dialog
+import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NdefRecord
+import android.nfc.NfcAdapter
+import android.nfc.Tag
+import android.nfc.tech.Ndef
+import android.nfc.tech.NdefFormatable
+import android.os.Build
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -14,6 +22,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
@@ -61,8 +70,22 @@ class MainActivity : ComponentActivity() {
     private lateinit var cardInfoLauncher: ActivityResultLauncher<Intent>
     private var bottomSheetBehavior: BottomSheetBehavior<View>? = null
 
+    // ── NFC ───────────────────────────────────────────────────────────────
+    private var nfcAdapter: NfcAdapter? = null
+    private var nfcPendingIntent: PendingIntent? = null
+    private var nfcWriteMode = false
+    private var nfcWriteDialog: android.app.AlertDialog? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ── NFC setup ─────────────────────────────────────────────────────
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        nfcPendingIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_MUTABLE
+        )
 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
@@ -235,7 +258,7 @@ class MainActivity : ComponentActivity() {
                                     Spacer(Modifier.height(6.dp))
                                     if (networks.isEmpty()) {
                                         Text(
-                                            "Нет добавленных соц.сетей.\nДобавьте через меню «Добавить соц.сети».",
+                                            "Нет добавленных соц.сетей.\nДобавьте через меню «Социальные сети».",
                                             style    = MaterialTheme.typography.bodySmall,
                                             modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
                                         )
@@ -282,8 +305,8 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             Spacer(modifier = Modifier.height(16.dp))
 
-                                Text(
-                                    "Информация на визитке",
+                            Text(
+                                "Информация на визитке",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -297,8 +320,8 @@ class MainActivity : ComponentActivity() {
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                                Text(
-                                    "Социальные сети",
+                            Text(
+                                "Социальные сети",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -340,6 +363,21 @@ class MainActivity : ComponentActivity() {
                                     peekHeight        = peekPx
                                     isHideable        = false
                                     halfExpandedRatio  = 0.45f
+                                }
+
+                                // ── NFC button: show only if NFC hardware present ──
+                                val nfcBtn = root.findViewById<MaterialButton>(R.id.share_nfc_button)
+                                if (nfcAdapter != null) {
+                                    nfcBtn.visibility = View.VISIBLE
+                                }
+                                nfcBtn.setOnClickListener {
+                                    when {
+                                        nfcAdapter == null ->
+                                            Toast.makeText(this@MainActivity, "NFC не поддерживается на этом устройстве", Toast.LENGTH_LONG).show()
+                                        !nfcAdapter!!.isEnabled ->
+                                            Toast.makeText(this@MainActivity, "Включите NFC в настройках устройства", Toast.LENGTH_LONG).show()
+                                        else -> showNfcWriteDialog()
+                                    }
                                 }
 
                                 // ── Business card: pinch/rotate/tap ───────
@@ -384,7 +422,6 @@ class MainActivity : ComponentActivity() {
 
                                     when (event.actionMasked) {
                                         MotionEvent.ACTION_DOWN -> {
-                                            // Enable hardware layer for smooth transforms
                                             v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                                         }
                                         MotionEvent.ACTION_POINTER_DOWN -> {
@@ -396,7 +433,6 @@ class MainActivity : ComponentActivity() {
                                             if (event.pointerCount >= 2 && !prevAngle.isNaN()) {
                                                 val angle = fingerAngle(event)
                                                 val delta = angle - prevAngle
-                                                // Only apply small deltas to avoid jumps
                                                 if (delta in -30f..30f) {
                                                     cardRotation = (cardRotation + delta).coerceIn(-35f, 35f)
                                                     v.rotation = cardRotation
@@ -434,7 +470,6 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 // ── Social info → QR for that network ─────
-                                // Item 1: same behaviour as selecting a network in "Поделиться соц.сетями"
                                 root.findViewById<TextView>(R.id.telegram_info).setOnClickListener {
                                     val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                     val idx      = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
@@ -530,7 +565,8 @@ class MainActivity : ComponentActivity() {
                                     R.id.share_button,
                                     R.id.share_phone_button,
                                     R.id.share_email_button,
-                                    R.id.share_social_button
+                                    R.id.share_social_button,
+                                    R.id.share_nfc_button
                                 ).forEach { id ->
                                     root.findViewById<MaterialButton>(id).also { btn ->
                                         btn.backgroundTintList = btnTint
@@ -578,6 +614,9 @@ class MainActivity : ComponentActivity() {
                                 if (uriStr != null) {
                                     root.findViewById<ImageView>(R.id.photo)
                                         .setImageURI(Uri.parse(uriStr))
+                                } else {
+                                    root.findViewById<ImageView>(R.id.photo)
+                                        .setImageResource(R.drawable.photo)
                                 }
                             }
                         )
@@ -601,6 +640,133 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // ── NFC lifecycle ─────────────────────────────────────────────────────
+    override fun onResume() {
+        super.onResume()
+        if (nfcWriteMode) {
+            nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        nfcAdapter?.disableForegroundDispatch(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (nfcWriteMode &&
+            (NfcAdapter.ACTION_TAG_DISCOVERED == intent.action ||
+             NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action ||
+             NfcAdapter.ACTION_TECH_DISCOVERED == intent.action)) {
+            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            }
+            tag?.let { writeNdefToTag(it) }
+        }
+    }
+
+    // ── NFC helpers ────────────────────────────────────────────────────────
+    private fun buildVCard(): String {
+        val prefs    = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val name     = prefs.getString(KEY_FULL_NAME, "") ?: ""
+        val phone    = prefs.getString(KEY_PHONE, "") ?: ""
+        val email    = prefs.getString(KEY_EMAIL, "") ?: ""
+        val position = prefs.getString(KEY_POSITION, "") ?: ""
+        val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
+        return buildString {
+            appendLine("BEGIN:VCARD")
+            appendLine("VERSION:3.0")
+            if (name.isNotBlank())     appendLine("FN:$name")
+            if (phone.isNotBlank())    appendLine("TEL:$phone")
+            if (email.isNotBlank())    appendLine("EMAIL:$email")
+            if (position.isNotBlank()) appendLine("TITLE:$position")
+            if (networks.isNotEmpty()) {
+                val note = networks.joinToString(", ") { "${it.type}: ${it.username}" }
+                appendLine("NOTE:$note")
+            }
+            append("END:VCARD")
+        }
+    }
+
+    private fun showNfcWriteDialog() {
+        nfcWriteMode = true
+        nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
+
+        nfcWriteDialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Запись на NFC-метку")
+            .setMessage(
+                "Поднесите телефон к NFC-метке (наклейке или карточке).\n\n" +
+                "Когда контакт будет записан, любой сможет считать его стандартным приложением контактов — приложение не нужно."
+            )
+            .setNegativeButton("Отмена") { dialog, _ ->
+                dialog.dismiss()
+                nfcWriteMode = false
+                nfcAdapter?.disableForegroundDispatch(this)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun writeNdefToTag(tag: Tag) {
+        val vCard       = buildVCard()
+        val ndefRecord  = NdefRecord.createMime("text/x-vCard", vCard.toByteArray(Charsets.UTF_8))
+        val ndefMessage = NdefMessage(arrayOf(ndefRecord))
+
+        try {
+            val ndef          = Ndef.get(tag)
+            val ndefFormatable = NdefFormatable.get(tag)
+
+            when {
+                ndef != null -> {
+                    ndef.connect()
+                    when {
+                        !ndef.isWritable ->
+                            runOnUiThread {
+                                Toast.makeText(this, "NFC-метка защищена от записи", Toast.LENGTH_LONG).show()
+                            }
+                        ndef.maxSize < ndefMessage.byteArrayLength ->
+                            runOnUiThread {
+                                Toast.makeText(this, "NFC-метка слишком маленькая для контакта", Toast.LENGTH_LONG).show()
+                            }
+                        else -> {
+                            ndef.writeNdefMessage(ndefMessage)
+                            runOnUiThread {
+                                nfcWriteDialog?.dismiss()
+                                nfcWriteMode = false
+                                nfcAdapter?.disableForegroundDispatch(this)
+                                Toast.makeText(this, "✓ Контакт записан на NFC-метку!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    ndef.close()
+                }
+                ndefFormatable != null -> {
+                    ndefFormatable.connect()
+                    ndefFormatable.format(ndefMessage)
+                    ndefFormatable.close()
+                    runOnUiThread {
+                        nfcWriteDialog?.dismiss()
+                        nfcWriteMode = false
+                        nfcAdapter?.disableForegroundDispatch(this)
+                        Toast.makeText(this, "✓ Контакт записан на NFC-метку!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                else ->
+                    runOnUiThread {
+                        Toast.makeText(this, "Эта NFC-метка не поддерживает запись", Toast.LENGTH_LONG).show()
+                    }
+            }
+        } catch (e: Exception) {
+            runOnUiThread {
+                Toast.makeText(this, "Ошибка записи: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     // ── Social sharing dialog ──────────────────────────────────────────────
     private fun showSocialShareDialog(ownerName: String) {
         val prefs    = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -609,7 +775,7 @@ class MainActivity : ComponentActivity() {
         if (networks.isEmpty()) {
             android.app.AlertDialog.Builder(this)
                 .setTitle("Социальные сети")
-                .setMessage("Нет добавленных социальных сетей.\n\nОткройте меню «Добавить соц.сети».")
+                .setMessage("Нет добавленных социальных сетей.\n\nОткройте меню «Социальные сети».")
                 .setPositiveButton("OK", null)
                 .show()
             return
@@ -640,7 +806,6 @@ class MainActivity : ComponentActivity() {
             })
         }
 
-        // Item 4: "Share all" → opens note-taking app with plain text (not vCard/Contacts)
         content.addView(MaterialButton(this).apply {
             text  = "Поделиться всеми соц.сетями"
             setTextColor(Color.BLACK)
@@ -658,7 +823,6 @@ class MainActivity : ComponentActivity() {
                     appendLine("Социальные сети — $ownerName:")
                     networks.forEach { n -> appendLine("${n.type}: ${n.username}") }
                 }.trim()
-                // Share as plain text so the user can choose their notes app
                 startActivity(Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
