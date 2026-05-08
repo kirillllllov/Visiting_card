@@ -53,6 +53,17 @@
                 android:focusable="true"
                 android:contentDescription="Фото профиля" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/eci_delete_photo_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="10dp"
+                android:text="Удалить фото"
+                android:textSize="14sp"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="20dp" />
+
             <!-- Section header -->
             <TextView
                 android:id="@+id/eci_section_header_data"

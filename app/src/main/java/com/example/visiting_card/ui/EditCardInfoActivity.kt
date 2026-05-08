@@ -6,6 +6,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -72,13 +73,23 @@ class EditCardInfoActivity : ComponentActivity() {
             pickImageLauncher.launch(Intent(Intent.ACTION_PICK).apply { type = "image/*" })
         }
 
+        findViewById<MaterialButton>(R.id.eci_delete_photo_button).setOnClickListener {
+            selectedImageUri = null
+            prefs.edit().remove(KEY_PROFILE_IMAGE_URI).apply()
+            photoView.setImageResource(R.drawable.photo)
+        }
+
         findViewById<MaterialButton>(R.id.eci_save_button).setOnClickListener {
             with(prefs.edit()) {
                 putString(KEY_FULL_NAME, fullNameInput.text.toString().trim())
                 putString(KEY_POSITION,  positionInput.text.toString().trim())
                 putString(KEY_PHONE,     phoneInput.text.toString().trim())
                 putString(KEY_ABOUT,     aboutInput.text.toString().trim())
-                selectedImageUri?.let { putString(KEY_PROFILE_IMAGE_URI, it.toString()) }
+                if (selectedImageUri != null) {
+                    putString(KEY_PROFILE_IMAGE_URI, selectedImageUri.toString())
+                } else {
+                    remove(KEY_PROFILE_IMAGE_URI)
+                }
                 apply()
             }
             setResult(RESULT_OK)
@@ -111,5 +122,10 @@ class EditCardInfoActivity : ComponentActivity() {
         val saveBtn = findViewById<MaterialButton>(R.id.eci_save_button)
         saveBtn.backgroundTintList = ColorStateList.valueOf(btnBg)
         saveBtn.setTextColor(btnText)
+
+        findViewById<MaterialButton>(R.id.eci_delete_photo_button).apply {
+            backgroundTintList = ColorStateList.valueOf(if (isDark) Color.parseColor("#333333") else Color.parseColor("#EAEAEA"))
+            setTextColor(textPrimary)
+        }
     }
 }

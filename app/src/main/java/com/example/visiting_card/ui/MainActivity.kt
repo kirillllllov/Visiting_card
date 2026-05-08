@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
                 if (showSettingsDialog.value) {
                     val scrollState = rememberScrollState()
                     AlertDialog(
-                        onDismissRequest = { showSettingsDialog.value = false },
+                        onDismissRequest = {},
                         title = { Text("Настройки") },
                         text = {
                             Column(modifier = Modifier.verticalScroll(scrollState)) {
@@ -282,8 +282,8 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                "Изменить информацию на визитке",
+                                Text(
+                                    "Информация на визитке",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -297,8 +297,8 @@ class MainActivity : ComponentActivity() {
                             )
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                            Text(
-                                "Добавить соц.сети",
+                                Text(
+                                    "Социальные сети",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
