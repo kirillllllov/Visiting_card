@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
@@ -28,9 +29,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.cardview.widget.CardView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -42,12 +46,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import com.example.visiting_card.R
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_ABOUT
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_BG1
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_BG2
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_TEXT_COLOR
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_EMAIL
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_FULL_NAME
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_PHONE
@@ -68,7 +80,26 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.common.BitMatrix
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.atan2
+
+// ── Card design presets ────────────────────────────────────────────────────
+data class CardTheme(val name: String, val bg1: String, val bg2: String, val textColor: String)
+
+val CARD_THEMES = listOf(
+    CardTheme("Авто",     "",         "",         ""),
+    CardTheme("Классика", "#FFFFFF",  "#FFFFFF",  "#000000"),
+    CardTheme("Тёмный",   "#1C1C1E",  "#2C2C2E",  "#FFFFFF"),
+    CardTheme("Индиго",   "#1a1a2e",  "#16213e",  "#FFFFFF"),
+    CardTheme("Океан",    "#2193b0",  "#6dd5ed",  "#FFFFFF"),
+    CardTheme("Лес",      "#134E5E",  "#71B280",  "#FFFFFF"),
+    CardTheme("Закат",    "#f093fb",  "#f5576c",  "#FFFFFF"),
+    CardTheme("Золото",   "#F7971E",  "#FFD200",  "#2C2C2E"),
+    CardTheme("Лаванда",  "#667eea",  "#764ba2",  "#FFFFFF"),
+    CardTheme("Уголь",    "#232526",  "#414345",  "#FFFFFF"),
+    CardTheme("Вишня",    "#870000",  "#190A05",  "#FFFFFF"),
+    CardTheme("Мята",     "#00b4d8",  "#90e0ef",  "#003049"),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -87,7 +118,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ── NFC setup ──────────────────────────────────────────────────────
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         nfcPendingIntent = PendingIntent.getActivity(
             this, 0,
@@ -97,7 +127,6 @@ class MainActivity : ComponentActivity() {
 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // ── Profile init ───────────────────────────────────────────────────
         val initialActiveId = ProfileManager.initIfNeeded(prefs)
 
         // ── Card state ─────────────────────────────────────────────────────
@@ -113,6 +142,11 @@ class MainActivity : ComponentActivity() {
         val selectedSocialIdx    = mutableStateOf(prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1))
         val isDarkTheme          = mutableStateOf(prefs.getBoolean(KEY_THEME_DARK, false))
 
+        // ── Card design state ──────────────────────────────────────────────
+        val cardBg1State      = mutableStateOf(prefs.getString(KEY_CARD_BG1, "") ?: "")
+        val cardBg2State      = mutableStateOf(prefs.getString(KEY_CARD_BG2, "") ?: "")
+        val cardTextColorState = mutableStateOf(prefs.getString(KEY_CARD_TEXT_COLOR, "") ?: "")
+
         // ── Profile state ──────────────────────────────────────────────────
         val activeProfileIdState    = mutableStateOf(initialActiveId)
         val activeProfileLabelState = mutableStateOf(
@@ -122,14 +156,15 @@ class MainActivity : ComponentActivity() {
         val allProfilesState = mutableStateOf(ProfileManager.getAllProfiles(prefs))
 
         // ── Dialog state ───────────────────────────────────────────────────
-        val showSettingsDialog   = mutableStateOf(false)
-        val showAddProfileDialog = mutableStateOf(false)
-        val addProfileNameInput  = mutableStateOf("")
+        val showSettingsDialog    = mutableStateOf(false)
+        val showCardDesignDialog  = mutableStateOf(false)
+        val showAddProfileDialog  = mutableStateOf(false)
+        val addProfileNameInput   = mutableStateOf("")
         val showRenameDialogForId = mutableStateOf<String?>(null)
-        val renameInput          = mutableStateOf("")
-        val showDeleteConfirmId  = mutableStateOf<String?>(null)
+        val renameInput           = mutableStateOf("")
+        val showDeleteConfirmId   = mutableStateOf<String?>(null)
 
-        // ── Helper: reload all card states from prefs ──────────────────────
+        // ── Reload helper ──────────────────────────────────────────────────
         val reloadFromPrefs: () -> Unit = {
             fullNameState.value        = prefs.getString(KEY_FULL_NAME, "") ?: ""
             positionState.value        = prefs.getString(KEY_POSITION, "") ?: ""
@@ -141,9 +176,12 @@ class MainActivity : ComponentActivity() {
             showLogoState.value        = prefs.getBoolean(KEY_SHOW_LOGO, true)
             showSocialState.value      = prefs.getBoolean(KEY_SHOW_SOCIAL, false)
             selectedSocialIdx.value    = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
+            cardBg1State.value         = prefs.getString(KEY_CARD_BG1, "") ?: ""
+            cardBg2State.value         = prefs.getString(KEY_CARD_BG2, "") ?: ""
+            cardTextColorState.value   = prefs.getString(KEY_CARD_TEXT_COLOR, "") ?: ""
         }
 
-        // ── Photo picker ───────────────────────────────────────────────────
+        // ── Launchers ──────────────────────────────────────────────────────
         pickImageLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
@@ -151,38 +189,28 @@ class MainActivity : ComponentActivity() {
                 val uri = result.data?.data ?: return@registerForActivityResult
                 prefs.edit().putString(KEY_PROFILE_IMAGE_URI, uri.toString()).apply()
                 profileImageUriState.value = uri.toString()
-                ProfileManager.syncActiveFromMainPrefs(
-                    prefs, activeProfileIdState.value, activeProfileLabelState.value
-                )
+                ProfileManager.syncActiveFromMainPrefs(prefs, activeProfileIdState.value, activeProfileLabelState.value)
                 allProfilesState.value = ProfileManager.getAllProfiles(prefs)
             }
         }
 
-        // ── Edit card info launcher ────────────────────────────────────────
         cardInfoLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode == RESULT_OK) {
                 reloadFromPrefs()
-                ProfileManager.syncActiveFromMainPrefs(
-                    prefs, activeProfileIdState.value, activeProfileLabelState.value
-                )
+                ProfileManager.syncActiveFromMainPrefs(prefs, activeProfileIdState.value, activeProfileLabelState.value)
                 allProfilesState.value = ProfileManager.getAllProfiles(prefs)
             }
         }
 
-        // ── Social networks launcher ───────────────────────────────────────
         socialNetworksLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { _ ->
-            // Sync social networks to active profile store
-            ProfileManager.syncActiveFromMainPrefs(
-                prefs, activeProfileIdState.value, activeProfileLabelState.value
-            )
+            ProfileManager.syncActiveFromMainPrefs(prefs, activeProfileIdState.value, activeProfileLabelState.value)
             allProfilesState.value = ProfileManager.getAllProfiles(prefs)
         }
 
-        // First launch: open edit screen if name is empty
         if (prefs.getString(KEY_FULL_NAME, "").isNullOrEmpty()) {
             cardInfoLauncher.launch(Intent(this, EditCardInfoActivity::class.java))
         }
@@ -209,18 +237,13 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(DrawerValue.Closed)
                 val scope       = rememberCoroutineScope()
                 val isDark      = isDarkTheme.value
-                val iconTint    = if (isDark)
-                    androidx.compose.ui.graphics.Color.White
-                else
-                    androidx.compose.ui.graphics.Color.Black
+                val iconTint    = if (isDark) androidx.compose.ui.graphics.Color.White
+                                  else        androidx.compose.ui.graphics.Color.Black
 
                 // ── Add profile dialog ─────────────────────────────────────
                 if (showAddProfileDialog.value) {
                     AlertDialog(
-                        onDismissRequest = {
-                            showAddProfileDialog.value = false
-                            addProfileNameInput.value  = ""
-                        },
+                        onDismissRequest = { showAddProfileDialog.value = false; addProfileNameInput.value = "" },
                         title = { Text("Новый профиль") },
                         text  = {
                             OutlinedTextField(
@@ -233,31 +256,25 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val label = addProfileNameInput.value.trim()
-                                        .ifEmpty { "Профиль ${allProfilesState.value.size + 1}" }
-                                    val newProfile = ProfileManager.createAndSwitchTo(
-                                        prefs,
-                                        activeProfileIdState.value,
-                                        activeProfileLabelState.value,
-                                        label
-                                    )
-                                    activeProfileIdState.value    = newProfile.id
-                                    activeProfileLabelState.value = newProfile.label
-                                    allProfilesState.value        = ProfileManager.getAllProfiles(prefs)
-                                    reloadFromPrefs()
-                                    showAddProfileDialog.value = false
-                                    addProfileNameInput.value  = ""
-                                    scope.launch { drawerState.close() }
-                                }
-                            ) { Text("Создать") }
-                        },
-                        dismissButton = {
                             TextButton(onClick = {
+                                val label = addProfileNameInput.value.trim()
+                                    .ifEmpty { "Профиль ${allProfilesState.value.size + 1}" }
+                                val newProfile = ProfileManager.createAndSwitchTo(
+                                    prefs, activeProfileIdState.value, activeProfileLabelState.value, label
+                                )
+                                activeProfileIdState.value    = newProfile.id
+                                activeProfileLabelState.value = newProfile.label
+                                allProfilesState.value        = ProfileManager.getAllProfiles(prefs)
+                                reloadFromPrefs()
                                 showAddProfileDialog.value = false
                                 addProfileNameInput.value  = ""
-                            }) { Text("Отмена") }
+                                scope.launch { drawerState.close() }
+                            }) { Text("Создать") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showAddProfileDialog.value = false; addProfileNameInput.value = "" }) {
+                                Text("Отмена")
+                            }
                         }
                     )
                 }
@@ -277,59 +294,134 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val newLabel = renameInput.value.trim()
-                                    if (newLabel.isNotEmpty()) {
-                                        ProfileManager.renameProfile(prefs, renameId, newLabel)
-                                        if (renameId == activeProfileIdState.value) {
-                                            activeProfileLabelState.value = newLabel
-                                        }
-                                        allProfilesState.value = ProfileManager.getAllProfiles(prefs)
-                                    }
-                                    showRenameDialogForId.value = null
+                            TextButton(onClick = {
+                                val newLabel = renameInput.value.trim()
+                                if (newLabel.isNotEmpty()) {
+                                    ProfileManager.renameProfile(prefs, renameId, newLabel)
+                                    if (renameId == activeProfileIdState.value)
+                                        activeProfileLabelState.value = newLabel
+                                    allProfilesState.value = ProfileManager.getAllProfiles(prefs)
                                 }
-                            ) { Text("Сохранить") }
+                                showRenameDialogForId.value = null
+                            }) { Text("Сохранить") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showRenameDialogForId.value = null }) {
-                                Text("Отмена")
-                            }
+                            TextButton(onClick = { showRenameDialogForId.value = null }) { Text("Отмена") }
                         }
                     )
                 }
 
-                // ── Delete confirmation dialog ─────────────────────────────
+                // ── Delete confirmation ────────────────────────────────────
                 showDeleteConfirmId.value?.let { deleteId ->
-                    val profileToDelete = allProfilesState.value.firstOrNull { it.id == deleteId }
+                    val lbl = allProfilesState.value.firstOrNull { it.id == deleteId }?.label ?: ""
                     AlertDialog(
                         onDismissRequest = { showDeleteConfirmId.value = null },
                         title = { Text("Удалить профиль?") },
-                        text  = {
-                            Text("Профиль «${profileToDelete?.label ?: ""}» и все его данные будут удалены.")
-                        },
+                        text  = { Text("Профиль «$lbl» и все его данные будут удалены.") },
                         confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    val newActive = ProfileManager.deleteProfile(
-                                        prefs, deleteId,
-                                        activeProfileIdState.value,
-                                        activeProfileLabelState.value
-                                    )
-                                    if (newActive != null) {
-                                        activeProfileIdState.value    = newActive.id
-                                        activeProfileLabelState.value = newActive.label
-                                        reloadFromPrefs()
-                                    }
-                                    allProfilesState.value = ProfileManager.getAllProfiles(prefs)
-                                    showDeleteConfirmId.value = null
+                            TextButton(onClick = {
+                                val newActive = ProfileManager.deleteProfile(
+                                    prefs, deleteId, activeProfileIdState.value, activeProfileLabelState.value
+                                )
+                                if (newActive != null) {
+                                    activeProfileIdState.value    = newActive.id
+                                    activeProfileLabelState.value = newActive.label
+                                    reloadFromPrefs()
                                 }
-                            ) { Text("Удалить", color = androidx.compose.ui.graphics.Color.Red) }
+                                allProfilesState.value = ProfileManager.getAllProfiles(prefs)
+                                showDeleteConfirmId.value = null
+                            }) { Text("Удалить", color = androidx.compose.ui.graphics.Color.Red) }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showDeleteConfirmId.value = null }) {
-                                Text("Отмена")
+                            TextButton(onClick = { showDeleteConfirmId.value = null }) { Text("Отмена") }
+                        }
+                    )
+                }
+
+                // ── Card design dialog ─────────────────────────────────────
+                if (showCardDesignDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = { showCardDesignDialog.value = false },
+                        title = { Text("Дизайн карточки") },
+                        text  = {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                CARD_THEMES.chunked(3).forEach { row ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        row.forEach { theme ->
+                                            val isSelected = theme.bg1 == cardBg1State.value
+                                            val c1 = if (theme.bg1.isNotEmpty())
+                                                androidx.compose.ui.graphics.Color(Color.parseColor(theme.bg1))
+                                            else if (isDark)
+                                                androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+                                            else
+                                                androidx.compose.ui.graphics.Color.White
+                                            val c2 = if (theme.bg2.isNotEmpty())
+                                                androidx.compose.ui.graphics.Color(Color.parseColor(theme.bg2))
+                                            else c1
+
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier
+                                                    .padding(4.dp)
+                                                    .clickable {
+                                                        cardBg1State.value       = theme.bg1
+                                                        cardBg2State.value       = theme.bg2
+                                                        cardTextColorState.value = theme.textColor
+                                                        prefs.edit()
+                                                            .putString(KEY_CARD_BG1, theme.bg1)
+                                                            .putString(KEY_CARD_BG2, theme.bg2)
+                                                            .putString(KEY_CARD_TEXT_COLOR, theme.textColor)
+                                                            .apply()
+                                                        ProfileManager.syncActiveFromMainPrefs(
+                                                            prefs, activeProfileIdState.value, activeProfileLabelState.value
+                                                        )
+                                                        allProfilesState.value = ProfileManager.getAllProfiles(prefs)
+                                                        showCardDesignDialog.value = false
+                                                    }
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .width(72.dp)
+                                                        .height(90.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(
+                                                            Brush.linearGradient(listOf(c1, c2))
+                                                        )
+                                                        .then(
+                                                            if (isSelected)
+                                                                Modifier.border(
+                                                                    2.5.dp,
+                                                                    MaterialTheme.colorScheme.primary,
+                                                                    RoundedCornerShape(12.dp)
+                                                                )
+                                                            else Modifier
+                                                        )
+                                                )
+                                                Text(
+                                                    theme.name,
+                                                    fontSize   = 10.sp,
+                                                    maxLines   = 1,
+                                                    overflow   = TextOverflow.Ellipsis,
+                                                    textAlign  = TextAlign.Center,
+                                                    modifier   = Modifier
+                                                        .padding(top = 4.dp)
+                                                        .width(72.dp),
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            }
+                                        }
+                                        // pad incomplete rows
+                                        repeat(3 - row.size) { Spacer(Modifier.width(80.dp)) }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                }
                             }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showCardDesignDialog.value = false }) { Text("Закрыть") }
                         }
                     )
                 }
@@ -342,50 +434,33 @@ class MainActivity : ComponentActivity() {
                         title = { Text("Настройки") },
                         text  = {
                             Column(modifier = Modifier.verticalScroll(scrollState)) {
-
-                                // ── Theme ──────────────────────────────────
-                                Text(
-                                    "Тема оформления",
-                                    style    = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
+                                Text("Тема оформления", style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(bottom = 4.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier          = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isDarkTheme.value = false
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
-                                        }
-                                        .padding(vertical = 4.dp)
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        isDarkTheme.value = false
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
+                                    }.padding(vertical = 4.dp)
                                 ) {
-                                    RadioButton(
-                                        selected = !isDarkTheme.value,
-                                        onClick  = {
-                                            isDarkTheme.value = false
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
-                                        }
-                                    )
+                                    RadioButton(selected = !isDarkTheme.value, onClick = {
+                                        isDarkTheme.value = false
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
+                                    })
                                     Spacer(Modifier.width(6.dp))
                                     Text("Светлая тема")
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier          = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isDarkTheme.value = true
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
-                                        }
-                                        .padding(vertical = 4.dp)
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        isDarkTheme.value = true
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
+                                    }.padding(vertical = 4.dp)
                                 ) {
-                                    RadioButton(
-                                        selected = isDarkTheme.value,
-                                        onClick  = {
-                                            isDarkTheme.value = true
-                                            prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
-                                        }
-                                    )
+                                    RadioButton(selected = isDarkTheme.value, onClick = {
+                                        isDarkTheme.value = true
+                                        prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
+                                    })
                                     Spacer(Modifier.width(6.dp))
                                     Text("Тёмная тема")
                                 }
@@ -394,70 +469,50 @@ class MainActivity : ComponentActivity() {
                                 HorizontalDivider()
                                 Spacer(Modifier.height(10.dp))
 
-                                // ── Visibility ─────────────────────────────
-                                Text(
-                                    "Отображение на визитке",
-                                    style    = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
+                                Text("Отображение на визитке", style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(bottom = 4.dp))
 
                                 @Composable
                                 fun visRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier          = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onToggle(!checked) }
-                                            .padding(vertical = 2.dp)
+                                        modifier = Modifier.fillMaxWidth()
+                                            .clickable { onToggle(!checked) }.padding(vertical = 2.dp)
                                     ) {
                                         Checkbox(checked = checked, onCheckedChange = onToggle)
                                         Spacer(Modifier.width(4.dp))
                                         Text(label)
                                     }
                                 }
-
                                 visRow("Должность", showPositionState.value) { v ->
-                                    showPositionState.value = v
-                                    prefs.edit().putBoolean(KEY_SHOW_POSITION, v).apply()
+                                    showPositionState.value = v; prefs.edit().putBoolean(KEY_SHOW_POSITION, v).apply()
                                 }
                                 visRow("Номер телефона", showPhoneState.value) { v ->
-                                    showPhoneState.value = v
-                                    prefs.edit().putBoolean(KEY_SHOW_PHONE, v).apply()
+                                    showPhoneState.value = v; prefs.edit().putBoolean(KEY_SHOW_PHONE, v).apply()
                                 }
                                 visRow("Логотип", showLogoState.value) { v ->
-                                    showLogoState.value = v
-                                    prefs.edit().putBoolean(KEY_SHOW_LOGO, v).apply()
+                                    showLogoState.value = v; prefs.edit().putBoolean(KEY_SHOW_LOGO, v).apply()
                                 }
                                 visRow("Социальная сеть", showSocialState.value) { v ->
-                                    showSocialState.value = v
-                                    prefs.edit().putBoolean(KEY_SHOW_SOCIAL, v).apply()
+                                    showSocialState.value = v; prefs.edit().putBoolean(KEY_SHOW_SOCIAL, v).apply()
                                 }
 
                                 val dialogNetworks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                 if (showSocialState.value) {
                                     Spacer(Modifier.height(6.dp))
                                     if (dialogNetworks.isEmpty()) {
-                                        Text(
-                                            "Нет добавленных соц.сетей.\nДобавьте через меню «Социальные сети».",
-                                            style    = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
-                                        )
+                                        Text("Нет добавленных соц.сетей.", style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
                                     } else {
-                                        Text(
-                                            "Выберите соц.сеть для визитки:",
-                                            style    = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
-                                        )
+                                        Text("Выберите соц.сеть для визитки:", style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp))
                                         dialogNetworks.forEachIndexed { idx, network ->
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                modifier          = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        selectedSocialIdx.value = idx
-                                                        prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
-                                                    }
-                                                    .padding(vertical = 2.dp, horizontal = 8.dp)
+                                                modifier = Modifier.fillMaxWidth().clickable {
+                                                    selectedSocialIdx.value = idx
+                                                    prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
+                                                }.padding(vertical = 2.dp, horizontal = 8.dp)
                                             ) {
                                                 RadioButton(
                                                     selected = selectedSocialIdx.value == idx,
@@ -475,9 +530,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         confirmButton = {
-                            TextButton(onClick = { showSettingsDialog.value = false }) {
-                                Text("Закрыть")
-                            }
+                            TextButton(onClick = { showSettingsDialog.value = false }) { Text("Закрыть") }
                         }
                     )
                 }
@@ -489,30 +542,28 @@ class MainActivity : ComponentActivity() {
                         ModalDrawerSheet {
                             Spacer(Modifier.height(16.dp))
 
-                            // ── Profiles section header ────────────────────
+                            // ПРОФИЛИ header
                             Text(
                                 "ПРОФИЛИ",
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                                style    = MaterialTheme.typography.labelSmall,
-                                color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                modifier      = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                                style         = MaterialTheme.typography.labelSmall,
+                                color         = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                fontSize      = 11.sp,
+                                fontWeight    = FontWeight.SemiBold,
                                 letterSpacing = 1.5.sp
                             )
 
-                            // ── Profile rows ───────────────────────────────
+                            // Profile rows
                             allProfilesState.value.forEach { profile ->
                                 val isActive = profile.id == activeProfileIdState.value
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier          = Modifier
+                                    modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable(enabled = !isActive) {
                                             val switched = ProfileManager.switchTo(
-                                                prefs,
-                                                activeProfileIdState.value,
-                                                activeProfileLabelState.value,
-                                                profile.id
+                                                prefs, activeProfileIdState.value,
+                                                activeProfileLabelState.value, profile.id
                                             )
                                             if (switched != null) {
                                                 activeProfileIdState.value    = switched.id
@@ -524,130 +575,81 @@ class MainActivity : ComponentActivity() {
                                         }
                                         .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
                                 ) {
-                                    // Active checkmark or spacer
-                                    if (isActive) {
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = "Активный профиль",
-                                            modifier = Modifier.size(18.dp),
-                                            tint     = MaterialTheme.colorScheme.primary
-                                        )
-                                    } else {
+                                    if (isActive)
+                                        Icon(Icons.Default.Check, null, Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary)
+                                    else
                                         Spacer(Modifier.size(18.dp))
-                                    }
-
                                     Spacer(Modifier.width(10.dp))
-
-                                    // Profile label
                                     Text(
-                                        text       = profile.label,
-                                        modifier   = Modifier.weight(1f),
+                                        profile.label, modifier = Modifier.weight(1f),
                                         style      = MaterialTheme.typography.bodyLarge,
                                         fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
                                     )
-
-                                    // Rename button
-                                    IconButton(
-                                        onClick  = {
-                                            renameInput.value          = profile.label
-                                            showRenameDialogForId.value = profile.id
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Edit,
-                                            contentDescription = "Переименовать",
-                                            modifier = Modifier.size(16.dp),
-                                            tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                        )
+                                    IconButton(onClick = {
+                                        renameInput.value = profile.label
+                                        showRenameDialogForId.value = profile.id
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Default.Edit, null, Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                                     }
-
-                                    // Delete button (hidden if only 1 profile)
                                     if (allProfilesState.value.size > 1) {
-                                        IconButton(
-                                            onClick  = { showDeleteConfirmId.value = profile.id },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Close,
-                                                contentDescription = "Удалить профиль",
-                                                modifier = Modifier.size(16.dp),
-                                                tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                            )
+                                        IconButton(onClick = { showDeleteConfirmId.value = profile.id },
+                                            modifier = Modifier.size(36.dp)) {
+                                            Icon(Icons.Default.Close, null, Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f))
                                         }
                                     }
                                 }
                             }
 
-                            // ── Add profile ────────────────────────────────
+                            // Add profile
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier          = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        addProfileNameInput.value  = ""
-                                        showAddProfileDialog.value = true
-                                    }
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable { addProfileNameInput.value = ""; showAddProfileDialog.value = true }
                                     .padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = "Добавить профиль",
-                                    modifier = Modifier.size(18.dp),
-                                    tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
+                                Icon(Icons.Default.Add, null, Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                                 Spacer(Modifier.width(10.dp))
-                                Text(
-                                    "Добавить профиль",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
+                                Text("Добавить профиль", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                             }
 
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
 
-                            // ── Menu items ─────────────────────────────────
-                            Text(
-                                "Информация на визитке",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        cardInfoLauncher.launch(
-                                            Intent(this@MainActivity, EditCardInfoActivity::class.java)
-                                        )
-                                        scope.launch { drawerState.close() }
-                                    }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            // Menu items
+                            Text("Информация на визитке",
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    cardInfoLauncher.launch(Intent(this@MainActivity, EditCardInfoActivity::class.java))
+                                    scope.launch { drawerState.close() }
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge)
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                            Text(
-                                "Социальные сети",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        socialNetworksLauncher.launch(
-                                            Intent(this@MainActivity, AddSocialNetworksActivity::class.java)
-                                        )
-                                        scope.launch { drawerState.close() }
-                                    }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text("Социальные сети",
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    socialNetworksLauncher.launch(Intent(this@MainActivity, AddSocialNetworksActivity::class.java))
+                                    scope.launch { drawerState.close() }
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge)
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                            Text(
-                                "Настройки",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        showSettingsDialog.value = true
-                                        scope.launch { drawerState.close() }
-                                    }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text("Дизайн карточки",
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    showCardDesignDialog.value = true
+                                    scope.launch { drawerState.close() }
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge)
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                            Text("Настройки",
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    showSettingsDialog.value = true
+                                    scope.launch { drawerState.close() }
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 ) {
@@ -657,17 +659,20 @@ class MainActivity : ComponentActivity() {
                             factory  = { ctx ->
                                 val root = layoutInflater.inflate(R.layout.activity_main, null)
 
-                                // ── Bottom sheet ───────────────────────────
+                                // Bottom sheet
                                 val bottomSheet = root.findViewById<View>(R.id.bottomSheet)
                                 val peekPx      = (60 * ctx.resources.displayMetrics.density).toInt()
                                 bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                    state            = BottomSheetBehavior.STATE_COLLAPSED
-                                    peekHeight       = peekPx
-                                    isHideable       = false
+                                    state             = BottomSheetBehavior.STATE_COLLAPSED
+                                    peekHeight        = peekPx
+                                    isHideable        = false
                                     halfExpandedRatio = 0.45f
                                 }
 
-                                // ── NFC button ─────────────────────────────
+                                // Enable outline clipping on card (for gradient themes)
+                                root.findViewById<CardView>(R.id.business_card).clipToOutline = true
+
+                                // NFC button
                                 val nfcBtn = root.findViewById<MaterialButton>(R.id.share_nfc_button)
                                 if (nfcAdapter != null) nfcBtn.visibility = View.VISIBLE
                                 nfcBtn.setOnClickListener {
@@ -680,7 +685,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                // ── Business card: pinch/rotate/tap ───────
+                                // Export vCard button
+                                root.findViewById<MaterialButton>(R.id.export_vcf_button).setOnClickListener {
+                                    shareVCardFile()
+                                }
+
+                                // Pinch-to-zoom + rotate + tap
                                 val businessCard = root.findViewById<CardView>(R.id.business_card)
                                 var scaleFactor  = 1f
                                 var prevAngle    = Float.NaN
@@ -708,8 +718,7 @@ class MainActivity : ComponentActivity() {
                                             bottomSheetBehavior?.let { bsb ->
                                                 bsb.state = if (bsb.state == BottomSheetBehavior.STATE_COLLAPSED)
                                                     BottomSheetBehavior.STATE_HALF_EXPANDED
-                                                else
-                                                    BottomSheetBehavior.STATE_COLLAPSED
+                                                else BottomSheetBehavior.STATE_COLLAPSED
                                             }
                                             return true
                                         }
@@ -733,15 +742,12 @@ class MainActivity : ComponentActivity() {
                                                 }
                                                 prevAngle = angle
                                             }
-                                        MotionEvent.ACTION_POINTER_UP ->
-                                            prevAngle = Float.NaN
+                                        MotionEvent.ACTION_POINTER_UP -> prevAngle = Float.NaN
                                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                                             prevAngle = Float.NaN
                                             val needsReset = scaleFactor != 1f || cardRotation != 0f
-                                            scaleFactor  = 1f
-                                            cardRotation = 0f
-                                            v.animate()
-                                                .scaleX(1f).scaleY(1f).rotation(0f)
+                                            scaleFactor = 1f; cardRotation = 0f
+                                            v.animate().scaleX(1f).scaleY(1f).rotation(0f)
                                                 .setDuration(if (needsReset) 300L else 0L)
                                                 .setInterpolator(DecelerateInterpolator())
                                                 .withEndAction { v.setLayerType(View.LAYER_TYPE_NONE, null) }
@@ -751,7 +757,7 @@ class MainActivity : ComponentActivity() {
                                     true
                                 }
 
-                                // ── Phone → QR vCard ──────────────────────
+                                // Phone → QR vCard
                                 root.findViewById<TextView>(R.id.phone_number).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
@@ -761,46 +767,40 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // ── Social info → QR ──────────────────────
+                                // Social → QR
                                 root.findViewById<TextView>(R.id.telegram_info).setOnClickListener {
                                     val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                     val idx      = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
                                     if (idx >= 0 && idx < networks.size) {
-                                        val url = SocialNetworkUtils.getNetworkUrl(
-                                            networks[idx].type, networks[idx].username
-                                        )
+                                        val url = SocialNetworkUtils.getNetworkUrl(networks[idx].type, networks[idx].username)
                                         showQrDialog(generateQrCode(url), networks[idx].type)
                                     }
                                 }
 
-                                // ── Photo → gallery ────────────────────────
+                                // Photo → gallery
                                 root.findViewById<ImageView>(R.id.photo).setOnClickListener {
-                                    pickImageLauncher.launch(
-                                        Intent(Intent.ACTION_PICK).apply { type = "image/*" }
-                                    )
+                                    pickImageLauncher.launch(Intent(Intent.ACTION_PICK).apply { type = "image/*" })
                                 }
 
-                                // ── Share text ─────────────────────────────
+                                // Share text
                                 root.findViewById<MaterialButton>(R.id.share_button).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text
                                     val pos   = root.findViewById<TextView>(R.id.position).text
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text
                                     val about = root.findViewById<TextView>(R.id.about).text
-                                    val shareText = buildString {
+                                    val text  = buildString {
                                         appendLine("👤 $name")
                                         if (pos.isNotEmpty())   appendLine("💼 $pos")
                                         if (phone.isNotEmpty()) appendLine("📞 $phone")
                                         if (about.isNotEmpty()) append("ℹ️ $about")
                                     }
                                     startActivity(Intent.createChooser(
-                                        Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, shareText.trim())
-                                        }, "Поделиться через"
+                                        Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text.trim()) },
+                                        "Поделиться через"
                                     ))
                                 }
 
-                                // ── Share phone QR ─────────────────────────
+                                // Share phone QR
                                 root.findViewById<MaterialButton>(R.id.share_phone_button).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
@@ -810,57 +810,75 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // ── Share email QR ─────────────────────────
+                                // Share email QR
                                 root.findViewById<MaterialButton>(R.id.share_email_button).setOnClickListener {
                                     val email = prefs.getString(KEY_EMAIL, "") ?: ""
                                     if (email.isBlank()) return@setOnClickListener
                                     showQrDialog(generateQrCode("mailto:$email"), "Поделиться email")
                                 }
 
-                                // ── Share social networks ──────────────────
+                                // Share social
                                 root.findViewById<MaterialButton>(R.id.share_social_button).setOnClickListener {
-                                    val name = root.findViewById<TextView>(R.id.full_name).text.toString()
-                                    showSocialShareDialog(name)
+                                    showSocialShareDialog(root.findViewById<TextView>(R.id.full_name).text.toString())
                                 }
 
                                 root
                             },
                             update = { root ->
-                                val dark = isDarkTheme.value
+                                val dark  = isDarkTheme.value
+                                val bg1   = cardBg1State.value
+                                val bg2   = cardBg2State.value
+                                val ctxt  = cardTextColorState.value
+                                val hasCustom = bg1.isNotEmpty()
 
-                                root.setBackgroundColor(
-                                    if (dark) Color.parseColor("#121212") else Color.WHITE
-                                )
+                                // Bottom sheet bg
+                                root.setBackgroundColor(if (dark) Color.parseColor("#121212") else Color.WHITE)
                                 root.findViewById<View>(R.id.bottomSheet).setBackgroundResource(
                                     if (dark) R.drawable.bottom_sheet_background_dark
                                     else R.drawable.bottom_sheet_background
                                 )
-                                root.findViewById<CardView>(R.id.business_card)
-                                    .setCardBackgroundColor(
-                                        if (dark) Color.parseColor("#1E1E1E") else Color.WHITE
-                                    )
 
-                                val cardPrimary   = if (dark) Color.WHITE else Color.BLACK
-                                val cardSecondary = if (dark) Color.parseColor("#BBBBBB")
-                                                   else Color.parseColor("#555555")
-                                root.findViewById<TextView>(R.id.full_name).setTextColor(cardPrimary)
-                                root.findViewById<TextView>(R.id.position).setTextColor(cardSecondary)
-                                root.findViewById<TextView>(R.id.phone_number).setTextColor(cardPrimary)
-                                root.findViewById<TextView>(R.id.telegram_info).setTextColor(cardPrimary)
+                                val cardView  = root.findViewById<CardView>(R.id.business_card)
+                                val cardInner = root.findViewById<View>(R.id.card_inner)
 
-                                val sheetHint = if (dark) Color.parseColor("#AAAAAA")
-                                               else Color.parseColor("#777777")
+                                if (hasCustom) {
+                                    // ── Custom card theme ─────────────────
+                                    val c1     = Color.parseColor(bg1)
+                                    val c2     = if (bg2.isNotEmpty()) Color.parseColor(bg2) else c1
+                                    val radius = 16f * root.resources.displayMetrics.density
+                                    cardView.setCardBackgroundColor(Color.TRANSPARENT)
+                                    cardInner.background = GradientDrawable(
+                                        GradientDrawable.Orientation.TL_BR, intArrayOf(c1, c2)
+                                    ).apply { cornerRadius = radius }
+                                    val tc = if (ctxt.isNotEmpty()) Color.parseColor(ctxt) else Color.WHITE
+                                    root.findViewById<TextView>(R.id.full_name).setTextColor(tc)
+                                    root.findViewById<TextView>(R.id.position).setTextColor(tc)
+                                    root.findViewById<TextView>(R.id.phone_number).setTextColor(tc)
+                                    root.findViewById<TextView>(R.id.telegram_info).setTextColor(tc)
+                                } else {
+                                    // ── Default theme ─────────────────────
+                                    cardView.setCardBackgroundColor(if (dark) Color.parseColor("#1E1E1E") else Color.WHITE)
+                                    cardInner.background = null
+                                    val primary   = if (dark) Color.WHITE else Color.BLACK
+                                    val secondary = if (dark) Color.parseColor("#BBBBBB") else Color.parseColor("#555555")
+                                    root.findViewById<TextView>(R.id.full_name).setTextColor(primary)
+                                    root.findViewById<TextView>(R.id.position).setTextColor(secondary)
+                                    root.findViewById<TextView>(R.id.phone_number).setTextColor(primary)
+                                    root.findViewById<TextView>(R.id.telegram_info).setTextColor(primary)
+                                }
+
+                                // About + sheet hint
+                                val sheetHint = if (dark) Color.parseColor("#AAAAAA") else Color.parseColor("#777777")
                                 root.findViewById<TextView>(R.id.about).setTextColor(sheetHint)
 
+                                // Buttons
                                 val btnBg   = if (dark) Color.WHITE else Color.BLACK
                                 val btnText = if (dark) Color.BLACK else Color.WHITE
                                 val btnTint = android.content.res.ColorStateList.valueOf(btnBg)
                                 listOf(
-                                    R.id.share_button,
-                                    R.id.share_phone_button,
-                                    R.id.share_email_button,
-                                    R.id.share_social_button,
-                                    R.id.share_nfc_button
+                                    R.id.share_button, R.id.share_phone_button,
+                                    R.id.share_email_button, R.id.share_social_button,
+                                    R.id.share_nfc_button, R.id.export_vcf_button
                                 ).forEach { id ->
                                     root.findViewById<MaterialButton>(id).also { btn ->
                                         btn.backgroundTintList = btnTint
@@ -868,16 +886,16 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
+                                // Logo
                                 root.findViewById<ImageView>(R.id.logo).setImageResource(
-                                    if (dark) R.drawable.logo_for_dark_theme
-                                    else R.drawable.logo_for_light_theme
+                                    if (dark) R.drawable.logo_for_dark_theme else R.drawable.logo_for_light_theme
                                 )
 
-                                // ── Data ──────────────────────────────────
+                                // Data
                                 root.findViewById<TextView>(R.id.full_name).text = fullNameState.value
                                 root.findViewById<TextView>(R.id.about).text     = aboutState.value
 
-                                // ── Visibility ─────────────────────────────
+                                // Visibility
                                 val posView    = root.findViewById<TextView>(R.id.position)
                                 val phoneView  = root.findViewById<TextView>(R.id.phone_number)
                                 val logoView   = root.findViewById<ImageView>(R.id.logo)
@@ -905,22 +923,17 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 val uriStr = profileImageUriState.value
-                                if (uriStr != null) {
-                                    root.findViewById<ImageView>(R.id.photo).setImageURI(Uri.parse(uriStr))
-                                } else {
-                                    root.findViewById<ImageView>(R.id.photo).setImageResource(R.drawable.photo)
-                                }
+                                if (uriStr != null) root.findViewById<ImageView>(R.id.photo).setImageURI(Uri.parse(uriStr))
+                                else root.findViewById<ImageView>(R.id.photo).setImageResource(R.drawable.photo)
                             }
                         )
 
-                        // Floating hamburger
+                        // Hamburger
                         IconButton(
                             onClick  = { scope.launch { drawerState.open() } },
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(top = 28.dp, start = 4.dp)
+                            modifier = Modifier.align(Alignment.TopStart).padding(top = 28.dp, start = 4.dp)
                         ) {
-                            Icon(Icons.Default.Menu, contentDescription = "Меню", tint = iconTint)
+                            Icon(Icons.Default.Menu, "Меню", tint = iconTint)
                         }
                     }
                 }
@@ -931,9 +944,7 @@ class MainActivity : ComponentActivity() {
     // ── NFC lifecycle ──────────────────────────────────────────────────────
     override fun onResume() {
         super.onResume()
-        if (nfcWriteMode) {
-            nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
-        }
+        if (nfcWriteMode) nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
     }
 
     override fun onPause() {
@@ -948,17 +959,14 @@ class MainActivity : ComponentActivity() {
              NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action ||
              NfcAdapter.ACTION_TECH_DISCOVERED == intent.action)
         ) {
-            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                 intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-            }
+            else @Suppress("DEPRECATION") intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
             tag?.let { writeNdefToTag(it) }
         }
     }
 
-    // ── NFC helpers ────────────────────────────────────────────────────────
+    // ── vCard helpers ──────────────────────────────────────────────────────
     private fun buildVCard(): String {
         val prefs    = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val name     = prefs.getString(KEY_FULL_NAME, "") ?: ""
@@ -973,35 +981,45 @@ class MainActivity : ComponentActivity() {
             if (phone.isNotBlank())    appendLine("TEL:$phone")
             if (email.isNotBlank())    appendLine("EMAIL:$email")
             if (position.isNotBlank()) appendLine("TITLE:$position")
-            if (networks.isNotEmpty()) {
+            if (networks.isNotEmpty())
                 appendLine("NOTE:${networks.joinToString(", ") { "${it.type}: ${it.username}" }}")
-            }
             append("END:VCARD")
         }
     }
 
+    private fun shareVCardFile() {
+        try {
+            val file = File(cacheDir, "contact.vcf")
+            file.writeText(buildVCard())
+            val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+            startActivity(Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/x-vcard"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }, "Поделиться контактом"
+            ))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Ошибка экспорта: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // ── NFC write ──────────────────────────────────────────────────────────
     private fun showNfcWriteDialog() {
         nfcWriteMode = true
         nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
         nfcWriteDialog = android.app.AlertDialog.Builder(this)
             .setTitle("Запись на NFC-метку")
-            .setMessage(
-                "Поднесите телефон к NFC-метке (наклейке или карточке).\n\n" +
-                "Контакт будет записан в формате vCard — любой телефон считает его без приложения."
-            )
+            .setMessage("Поднесите телефон к NFC-метке (наклейке или карточке).\n\nКонтакт будет записан в формате vCard — любой телефон считает его без приложения.")
             .setNegativeButton("Отмена") { dialog, _ ->
-                dialog.dismiss()
-                nfcWriteMode = false
+                dialog.dismiss(); nfcWriteMode = false
                 nfcAdapter?.disableForegroundDispatch(this)
             }
-            .setCancelable(false)
-            .show()
+            .setCancelable(false).show()
     }
 
     private fun writeNdefToTag(tag: Tag) {
-        val ndefMessage = NdefMessage(arrayOf(
-            NdefRecord.createMime("text/x-vCard", buildVCard().toByteArray(Charsets.UTF_8))
-        ))
+        val msg = NdefMessage(arrayOf(NdefRecord.createMime("text/x-vCard", buildVCard().toByteArray(Charsets.UTF_8))))
         try {
             val ndef           = Ndef.get(tag)
             val ndefFormatable = NdefFormatable.get(tag)
@@ -1009,15 +1027,14 @@ class MainActivity : ComponentActivity() {
                 ndef != null -> {
                     ndef.connect()
                     when {
-                        !ndef.isWritable ->
-                            runOnUiThread { Toast.makeText(this, "NFC-метка защищена от записи", Toast.LENGTH_LONG).show() }
-                        ndef.maxSize < ndefMessage.byteArrayLength ->
-                            runOnUiThread { Toast.makeText(this, "NFC-метка слишком маленькая для контакта", Toast.LENGTH_LONG).show() }
+                        !ndef.isWritable -> runOnUiThread {
+                            Toast.makeText(this, "NFC-метка защищена от записи", Toast.LENGTH_LONG).show() }
+                        ndef.maxSize < msg.byteArrayLength -> runOnUiThread {
+                            Toast.makeText(this, "NFC-метка слишком маленькая для контакта", Toast.LENGTH_LONG).show() }
                         else -> {
-                            ndef.writeNdefMessage(ndefMessage)
+                            ndef.writeNdefMessage(msg)
                             runOnUiThread {
-                                nfcWriteDialog?.dismiss()
-                                nfcWriteMode = false
+                                nfcWriteDialog?.dismiss(); nfcWriteMode = false
                                 nfcAdapter?.disableForegroundDispatch(this)
                                 Toast.makeText(this, "✓ Контакт записан на NFC-метку!", Toast.LENGTH_SHORT).show()
                             }
@@ -1026,48 +1043,38 @@ class MainActivity : ComponentActivity() {
                     ndef.close()
                 }
                 ndefFormatable != null -> {
-                    ndefFormatable.connect()
-                    ndefFormatable.format(ndefMessage)
-                    ndefFormatable.close()
+                    ndefFormatable.connect(); ndefFormatable.format(msg); ndefFormatable.close()
                     runOnUiThread {
-                        nfcWriteDialog?.dismiss()
-                        nfcWriteMode = false
+                        nfcWriteDialog?.dismiss(); nfcWriteMode = false
                         nfcAdapter?.disableForegroundDispatch(this)
                         Toast.makeText(this, "✓ Контакт записан на NFC-метку!", Toast.LENGTH_SHORT).show()
                     }
                 }
                 else -> runOnUiThread {
-                    Toast.makeText(this, "Эта NFC-метка не поддерживает запись", Toast.LENGTH_LONG).show()
-                }
+                    Toast.makeText(this, "Эта NFC-метка не поддерживает запись", Toast.LENGTH_LONG).show() }
             }
         } catch (e: Exception) {
-            runOnUiThread {
-                Toast.makeText(this, "Ошибка записи: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
+            runOnUiThread { Toast.makeText(this, "Ошибка записи: ${e.localizedMessage}", Toast.LENGTH_LONG).show() }
         }
     }
 
-    // ── Social sharing dialog ──────────────────────────────────────────────
+    // ── Social share dialog ────────────────────────────────────────────────
     private fun showSocialShareDialog(ownerName: String) {
         val prefs    = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
-
         if (networks.isEmpty()) {
             android.app.AlertDialog.Builder(this)
                 .setTitle("Социальные сети")
-                .setMessage("Нет добавленных социальных сетей.\n\nОткройте меню «Социальные сети».")
-                .setPositiveButton("OK", null)
-                .show()
+                .setMessage("Нет добавленных социальных сетей.")
+                .setPositiveButton("OK", null).show()
             return
         }
-
         val dialog  = android.app.AlertDialog.Builder(this).setTitle("Выберите соц.сеть").create()
         val density = resources.displayMetrics.density
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((16 * density).toInt(), 8, (16 * density).toInt(), 8)
         }
-
         networks.forEach { network ->
             content.addView(MaterialButton(this).apply {
                 text               = "${network.type}: ${network.username}"
@@ -1075,19 +1082,14 @@ class MainActivity : ComponentActivity() {
                 backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
                 cornerRadius       = (24 * density).toInt()
                 layoutParams       = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).also { it.bottomMargin = (10 * density).toInt() }
                 setOnClickListener {
                     dialog.dismiss()
-                    showQrDialog(
-                        generateQrCode(SocialNetworkUtils.getNetworkUrl(network.type, network.username)),
-                        network.type
-                    )
+                    showQrDialog(generateQrCode(SocialNetworkUtils.getNetworkUrl(network.type, network.username)), network.type)
                 }
             })
         }
-
         content.addView(MaterialButton(this).apply {
             text               = "Поделиться всеми соц.сетями"
             setTextColor(Color.BLACK)
@@ -1096,8 +1098,7 @@ class MainActivity : ComponentActivity() {
             strokeWidth        = (1 * density).toInt()
             cornerRadius       = (24 * density).toInt()
             layoutParams       = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).also { it.topMargin = (6 * density).toInt() }
             setOnClickListener {
                 dialog.dismiss()
@@ -1107,29 +1108,22 @@ class MainActivity : ComponentActivity() {
                 }.trim()
                 startActivity(Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
+                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text)
                         putExtra(Intent.EXTRA_TITLE, "Социальные сети")
                     }, "Добавить в заметки"
                 ))
             }
         })
-
-        dialog.setView(content)
-        dialog.show()
+        dialog.setView(content); dialog.show()
     }
 
     // ── QR generation ─────────────────────────────────────────────────────
     private fun generateQrCode(data: String, size: Int = 512): Bitmap {
         val hints     = mapOf(EncodeHintType.CHARACTER_SET to "UTF-8")
-        val bitMatrix: BitMatrix = MultiFormatWriter()
-            .encode(data, BarcodeFormat.QR_CODE, size, size, hints)
+        val bitMatrix: BitMatrix = MultiFormatWriter().encode(data, BarcodeFormat.QR_CODE, size, size, hints)
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        for (x in 0 until size) {
-            for (y in 0 until size) {
-                bmp.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
-            }
-        }
+        for (x in 0 until size) for (y in 0 until size)
+            bmp.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
         return bmp
     }
 
@@ -1139,7 +1133,6 @@ class MainActivity : ComponentActivity() {
         view.findViewById<TextView>(R.id.qr_title).text = title
         view.findViewById<ImageView>(R.id.qrCodeImageView).setImageBitmap(qrBitmap)
         view.findViewById<MaterialButton>(R.id.closeButton).setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(view)
-        dialog.show()
+        dialog.setContentView(view); dialog.show()
     }
 }

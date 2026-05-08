@@ -28,6 +28,7 @@
             app:layout_constraintVertical_bias="0.35">
 
             <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/card_inner"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:padding="16dp">
@@ -218,6 +219,18 @@
                 android:textColor="@color/white"
                 android:textSize="16sp"
                 android:visibility="gone"
+                app:backgroundTint="@color/accent"
+                app:cornerRadius="24dp" />
+
+            <!-- Export as vCard file -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/export_vcf_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Экспорт контакта (.vcf)"
+                android:textColor="@color/white"
+                android:textSize="16sp"
                 app:backgroundTint="@color/accent"
                 app:cornerRadius="24dp" />
 

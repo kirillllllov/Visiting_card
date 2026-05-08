@@ -35,6 +35,10 @@ class EditDataActivity : ComponentActivity() {
         const val KEY_SELECTED_SOCIAL_INDEX = "selected_social_index"
         // Theme
         const val KEY_THEME_DARK = "theme_dark"
+        // Card design
+        const val KEY_CARD_BG1        = "card_bg_color1"
+        const val KEY_CARD_BG2        = "card_bg_color2"
+        const val KEY_CARD_TEXT_COLOR = "card_text_color"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
