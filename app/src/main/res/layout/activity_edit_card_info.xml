@@ -47,7 +47,7 @@
                 android:layout_gravity="center_horizontal"
                 android:src="@drawable/photo"
                 android:scaleType="centerCrop"
-                android:background="@drawable/circle_background"
+                android:background="@drawable/circle_background_editable"
                 android:clipToOutline="true"
                 android:clickable="true"
                 android:focusable="true"

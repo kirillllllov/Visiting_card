@@ -127,5 +127,10 @@ class EditCardInfoActivity : ComponentActivity() {
             backgroundTintList = ColorStateList.valueOf(if (isDark) Color.parseColor("#333333") else Color.parseColor("#EAEAEA"))
             setTextColor(textPrimary)
         }
+
+        findViewById<ImageView>(R.id.eci_photo).setBackgroundResource(
+            if (isDark) R.drawable.circle_background_editable_dark
+            else R.drawable.circle_background_editable
+        )
     }
 }
