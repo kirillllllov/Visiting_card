@@ -33,12 +33,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.visiting_card.R
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_ABOUT
@@ -66,11 +72,13 @@ import kotlin.math.atan2
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+
     private lateinit var pickImageLauncher: ActivityResultLauncher<Intent>
     private lateinit var cardInfoLauncher: ActivityResultLauncher<Intent>
+    private lateinit var socialNetworksLauncher: ActivityResultLauncher<Intent>
     private var bottomSheetBehavior: BottomSheetBehavior<View>? = null
 
-    // ── NFC ───────────────────────────────────────────────────────────────
+    // ── NFC ────────────────────────────────────────────────────────────────
     private var nfcAdapter: NfcAdapter? = null
     private var nfcPendingIntent: PendingIntent? = null
     private var nfcWriteMode = false
@@ -79,7 +87,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ── NFC setup ─────────────────────────────────────────────────────
+        // ── NFC setup ──────────────────────────────────────────────────────
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         nfcPendingIntent = PendingIntent.getActivity(
             this, 0,
@@ -89,7 +97,10 @@ class MainActivity : ComponentActivity() {
 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // ── Compose state ──────────────────────────────────────────────────
+        // ── Profile init ───────────────────────────────────────────────────
+        val initialActiveId = ProfileManager.initIfNeeded(prefs)
+
+        // ── Card state ─────────────────────────────────────────────────────
         val fullNameState        = mutableStateOf(prefs.getString(KEY_FULL_NAME, "") ?: "")
         val positionState        = mutableStateOf(prefs.getString(KEY_POSITION, "") ?: "")
         val phoneState           = mutableStateOf(prefs.getString(KEY_PHONE, "") ?: "")
@@ -101,7 +112,36 @@ class MainActivity : ComponentActivity() {
         val showSocialState      = mutableStateOf(prefs.getBoolean(KEY_SHOW_SOCIAL, false))
         val selectedSocialIdx    = mutableStateOf(prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1))
         val isDarkTheme          = mutableStateOf(prefs.getBoolean(KEY_THEME_DARK, false))
+
+        // ── Profile state ──────────────────────────────────────────────────
+        val activeProfileIdState    = mutableStateOf(initialActiveId)
+        val activeProfileLabelState = mutableStateOf(
+            ProfileManager.getAllProfiles(prefs)
+                .firstOrNull { it.id == initialActiveId }?.label ?: ProfileManager.DEFAULT_LABEL
+        )
+        val allProfilesState = mutableStateOf(ProfileManager.getAllProfiles(prefs))
+
+        // ── Dialog state ───────────────────────────────────────────────────
         val showSettingsDialog   = mutableStateOf(false)
+        val showAddProfileDialog = mutableStateOf(false)
+        val addProfileNameInput  = mutableStateOf("")
+        val showRenameDialogForId = mutableStateOf<String?>(null)
+        val renameInput          = mutableStateOf("")
+        val showDeleteConfirmId  = mutableStateOf<String?>(null)
+
+        // ── Helper: reload all card states from prefs ──────────────────────
+        val reloadFromPrefs: () -> Unit = {
+            fullNameState.value        = prefs.getString(KEY_FULL_NAME, "") ?: ""
+            positionState.value        = prefs.getString(KEY_POSITION, "") ?: ""
+            phoneState.value           = prefs.getString(KEY_PHONE, "") ?: ""
+            aboutState.value           = prefs.getString(KEY_ABOUT, "") ?: ""
+            profileImageUriState.value = prefs.getString(KEY_PROFILE_IMAGE_URI, null)
+            showPositionState.value    = prefs.getBoolean(KEY_SHOW_POSITION, true)
+            showPhoneState.value       = prefs.getBoolean(KEY_SHOW_PHONE, true)
+            showLogoState.value        = prefs.getBoolean(KEY_SHOW_LOGO, true)
+            showSocialState.value      = prefs.getBoolean(KEY_SHOW_SOCIAL, false)
+            selectedSocialIdx.value    = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
+        }
 
         // ── Photo picker ───────────────────────────────────────────────────
         pickImageLauncher = registerForActivityResult(
@@ -111,6 +151,10 @@ class MainActivity : ComponentActivity() {
                 val uri = result.data?.data ?: return@registerForActivityResult
                 prefs.edit().putString(KEY_PROFILE_IMAGE_URI, uri.toString()).apply()
                 profileImageUriState.value = uri.toString()
+                ProfileManager.syncActiveFromMainPrefs(
+                    prefs, activeProfileIdState.value, activeProfileLabelState.value
+                )
+                allProfilesState.value = ProfileManager.getAllProfiles(prefs)
             }
         }
 
@@ -119,12 +163,23 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode == RESULT_OK) {
-                fullNameState.value        = prefs.getString(KEY_FULL_NAME, "") ?: ""
-                positionState.value        = prefs.getString(KEY_POSITION, "") ?: ""
-                phoneState.value           = prefs.getString(KEY_PHONE, "") ?: ""
-                aboutState.value           = prefs.getString(KEY_ABOUT, "") ?: ""
-                profileImageUriState.value = prefs.getString(KEY_PROFILE_IMAGE_URI, null)
+                reloadFromPrefs()
+                ProfileManager.syncActiveFromMainPrefs(
+                    prefs, activeProfileIdState.value, activeProfileLabelState.value
+                )
+                allProfilesState.value = ProfileManager.getAllProfiles(prefs)
             }
+        }
+
+        // ── Social networks launcher ───────────────────────────────────────
+        socialNetworksLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { _ ->
+            // Sync social networks to active profile store
+            ProfileManager.syncActiveFromMainPrefs(
+                prefs, activeProfileIdState.value, activeProfileLabelState.value
+            )
+            allProfilesState.value = ProfileManager.getAllProfiles(prefs)
         }
 
         // First launch: open edit screen if name is empty
@@ -159,13 +214,133 @@ class MainActivity : ComponentActivity() {
                 else
                     androidx.compose.ui.graphics.Color.Black
 
+                // ── Add profile dialog ─────────────────────────────────────
+                if (showAddProfileDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showAddProfileDialog.value = false
+                            addProfileNameInput.value  = ""
+                        },
+                        title = { Text("Новый профиль") },
+                        text  = {
+                            OutlinedTextField(
+                                value         = addProfileNameInput.value,
+                                onValueChange = { addProfileNameInput.value = it },
+                                label         = { Text("Название") },
+                                placeholder   = { Text("Работа, Личное, Фриланс…") },
+                                singleLine    = true,
+                                modifier      = Modifier.fillMaxWidth()
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val label = addProfileNameInput.value.trim()
+                                        .ifEmpty { "Профиль ${allProfilesState.value.size + 1}" }
+                                    val newProfile = ProfileManager.createAndSwitchTo(
+                                        prefs,
+                                        activeProfileIdState.value,
+                                        activeProfileLabelState.value,
+                                        label
+                                    )
+                                    activeProfileIdState.value    = newProfile.id
+                                    activeProfileLabelState.value = newProfile.label
+                                    allProfilesState.value        = ProfileManager.getAllProfiles(prefs)
+                                    reloadFromPrefs()
+                                    showAddProfileDialog.value = false
+                                    addProfileNameInput.value  = ""
+                                    scope.launch { drawerState.close() }
+                                }
+                            ) { Text("Создать") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                showAddProfileDialog.value = false
+                                addProfileNameInput.value  = ""
+                            }) { Text("Отмена") }
+                        }
+                    )
+                }
+
+                // ── Rename profile dialog ──────────────────────────────────
+                showRenameDialogForId.value?.let { renameId ->
+                    AlertDialog(
+                        onDismissRequest = { showRenameDialogForId.value = null },
+                        title = { Text("Переименовать профиль") },
+                        text  = {
+                            OutlinedTextField(
+                                value         = renameInput.value,
+                                onValueChange = { renameInput.value = it },
+                                label         = { Text("Название") },
+                                singleLine    = true,
+                                modifier      = Modifier.fillMaxWidth()
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val newLabel = renameInput.value.trim()
+                                    if (newLabel.isNotEmpty()) {
+                                        ProfileManager.renameProfile(prefs, renameId, newLabel)
+                                        if (renameId == activeProfileIdState.value) {
+                                            activeProfileLabelState.value = newLabel
+                                        }
+                                        allProfilesState.value = ProfileManager.getAllProfiles(prefs)
+                                    }
+                                    showRenameDialogForId.value = null
+                                }
+                            ) { Text("Сохранить") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRenameDialogForId.value = null }) {
+                                Text("Отмена")
+                            }
+                        }
+                    )
+                }
+
+                // ── Delete confirmation dialog ─────────────────────────────
+                showDeleteConfirmId.value?.let { deleteId ->
+                    val profileToDelete = allProfilesState.value.firstOrNull { it.id == deleteId }
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirmId.value = null },
+                        title = { Text("Удалить профиль?") },
+                        text  = {
+                            Text("Профиль «${profileToDelete?.label ?: ""}» и все его данные будут удалены.")
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val newActive = ProfileManager.deleteProfile(
+                                        prefs, deleteId,
+                                        activeProfileIdState.value,
+                                        activeProfileLabelState.value
+                                    )
+                                    if (newActive != null) {
+                                        activeProfileIdState.value    = newActive.id
+                                        activeProfileLabelState.value = newActive.label
+                                        reloadFromPrefs()
+                                    }
+                                    allProfilesState.value = ProfileManager.getAllProfiles(prefs)
+                                    showDeleteConfirmId.value = null
+                                }
+                            ) { Text("Удалить", color = androidx.compose.ui.graphics.Color.Red) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteConfirmId.value = null }) {
+                                Text("Отмена")
+                            }
+                        }
+                    )
+                }
+
                 // ── Settings dialog ────────────────────────────────────────
                 if (showSettingsDialog.value) {
                     val scrollState = rememberScrollState()
                     AlertDialog(
                         onDismissRequest = {},
                         title = { Text("Настройки") },
-                        text = {
+                        text  = {
                             Column(modifier = Modifier.verticalScroll(scrollState)) {
 
                                 // ── Theme ──────────────────────────────────
@@ -176,10 +351,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        isDarkTheme.value = false
-                                        prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
-                                    }.padding(vertical = 4.dp)
+                                    modifier          = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            isDarkTheme.value = false
+                                            prefs.edit().putBoolean(KEY_THEME_DARK, false).apply()
+                                        }
+                                        .padding(vertical = 4.dp)
                                 ) {
                                     RadioButton(
                                         selected = !isDarkTheme.value,
@@ -193,10 +371,13 @@ class MainActivity : ComponentActivity() {
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        isDarkTheme.value = true
-                                        prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
-                                    }.padding(vertical = 4.dp)
+                                    modifier          = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            isDarkTheme.value = true
+                                            prefs.edit().putBoolean(KEY_THEME_DARK, true).apply()
+                                        }
+                                        .padding(vertical = 4.dp)
                                 ) {
                                     RadioButton(
                                         selected = isDarkTheme.value,
@@ -224,9 +405,10 @@ class MainActivity : ComponentActivity() {
                                 fun visRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth().clickable {
-                                            onToggle(!checked)
-                                        }.padding(vertical = 2.dp)
+                                        modifier          = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onToggle(!checked) }
+                                            .padding(vertical = 2.dp)
                                     ) {
                                         Checkbox(checked = checked, onCheckedChange = onToggle)
                                         Spacer(Modifier.width(4.dp))
@@ -251,12 +433,10 @@ class MainActivity : ComponentActivity() {
                                     prefs.edit().putBoolean(KEY_SHOW_SOCIAL, v).apply()
                                 }
 
-                                // Social network selection — load unconditionally (Compose rules)
                                 val dialogNetworks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                 if (showSocialState.value) {
-                                    val networks = dialogNetworks
                                     Spacer(Modifier.height(6.dp))
-                                    if (networks.isEmpty()) {
+                                    if (dialogNetworks.isEmpty()) {
                                         Text(
                                             "Нет добавленных соц.сетей.\nДобавьте через меню «Социальные сети».",
                                             style    = MaterialTheme.typography.bodySmall,
@@ -268,13 +448,16 @@ class MainActivity : ComponentActivity() {
                                             style    = MaterialTheme.typography.bodySmall,
                                             modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
                                         )
-                                        networks.forEachIndexed { idx, network ->
+                                        dialogNetworks.forEachIndexed { idx, network ->
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.fillMaxWidth().clickable {
-                                                    selectedSocialIdx.value = idx
-                                                    prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
-                                                }.padding(vertical = 2.dp, horizontal = 8.dp)
+                                                modifier          = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedSocialIdx.value = idx
+                                                        prefs.edit().putInt(KEY_SELECTED_SOCIAL_INDEX, idx).apply()
+                                                    }
+                                                    .padding(vertical = 2.dp, horizontal = 8.dp)
                                             ) {
                                                 RadioButton(
                                                     selected = selectedSocialIdx.value == idx,
@@ -299,12 +482,131 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                // ── Navigation Drawer ──────────────────────────────────────
                 ModalNavigationDrawer(
                     drawerState   = drawerState,
                     drawerContent = {
                         ModalDrawerSheet {
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(Modifier.height(16.dp))
 
+                            // ── Profiles section header ────────────────────
+                            Text(
+                                "ПРОФИЛИ",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                                style    = MaterialTheme.typography.labelSmall,
+                                color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.5.sp
+                            )
+
+                            // ── Profile rows ───────────────────────────────
+                            allProfilesState.value.forEach { profile ->
+                                val isActive = profile.id == activeProfileIdState.value
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier          = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(enabled = !isActive) {
+                                            val switched = ProfileManager.switchTo(
+                                                prefs,
+                                                activeProfileIdState.value,
+                                                activeProfileLabelState.value,
+                                                profile.id
+                                            )
+                                            if (switched != null) {
+                                                activeProfileIdState.value    = switched.id
+                                                activeProfileLabelState.value = switched.label
+                                                allProfilesState.value        = ProfileManager.getAllProfiles(prefs)
+                                                reloadFromPrefs()
+                                                scope.launch { drawerState.close() }
+                                            }
+                                        }
+                                        .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                                ) {
+                                    // Active checkmark or spacer
+                                    if (isActive) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Активный профиль",
+                                            modifier = Modifier.size(18.dp),
+                                            tint     = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else {
+                                        Spacer(Modifier.size(18.dp))
+                                    }
+
+                                    Spacer(Modifier.width(10.dp))
+
+                                    // Profile label
+                                    Text(
+                                        text       = profile.label,
+                                        modifier   = Modifier.weight(1f),
+                                        style      = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+
+                                    // Rename button
+                                    IconButton(
+                                        onClick  = {
+                                            renameInput.value          = profile.label
+                                            showRenameDialogForId.value = profile.id
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Переименовать",
+                                            modifier = Modifier.size(16.dp),
+                                            tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                    }
+
+                                    // Delete button (hidden if only 1 profile)
+                                    if (allProfilesState.value.size > 1) {
+                                        IconButton(
+                                            onClick  = { showDeleteConfirmId.value = profile.id },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Удалить профиль",
+                                                modifier = Modifier.size(16.dp),
+                                                tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Add profile ────────────────────────────────
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier          = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        addProfileNameInput.value  = ""
+                                        showAddProfileDialog.value = true
+                                    }
+                                    .padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Добавить профиль",
+                                    modifier = Modifier.size(18.dp),
+                                    tint     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "Добавить профиль",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                            // ── Menu items ─────────────────────────────────
                             Text(
                                 "Информация на визитке",
                                 modifier = Modifier
@@ -325,7 +627,7 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        startActivity(
+                                        socialNetworksLauncher.launch(
                                             Intent(this@MainActivity, AddSocialNetworksActivity::class.java)
                                         )
                                         scope.launch { drawerState.close() }
@@ -357,19 +659,17 @@ class MainActivity : ComponentActivity() {
 
                                 // ── Bottom sheet ───────────────────────────
                                 val bottomSheet = root.findViewById<View>(R.id.bottomSheet)
-                                val peekPx = (60 * ctx.resources.displayMetrics.density).toInt()
+                                val peekPx      = (60 * ctx.resources.displayMetrics.density).toInt()
                                 bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
-                                    state             = BottomSheetBehavior.STATE_COLLAPSED
-                                    peekHeight        = peekPx
-                                    isHideable        = false
-                                    halfExpandedRatio  = 0.45f
+                                    state            = BottomSheetBehavior.STATE_COLLAPSED
+                                    peekHeight       = peekPx
+                                    isHideable       = false
+                                    halfExpandedRatio = 0.45f
                                 }
 
-                                // ── NFC button: show only if NFC hardware present ──
+                                // ── NFC button ─────────────────────────────
                                 val nfcBtn = root.findViewById<MaterialButton>(R.id.share_nfc_button)
-                                if (nfcAdapter != null) {
-                                    nfcBtn.visibility = View.VISIBLE
-                                }
+                                if (nfcAdapter != null) nfcBtn.visibility = View.VISIBLE
                                 nfcBtn.setOnClickListener {
                                     when {
                                         nfcAdapter == null ->
@@ -386,7 +686,6 @@ class MainActivity : ComponentActivity() {
                                 var prevAngle    = Float.NaN
                                 var cardRotation = 0f
 
-                                // Helper: angle between two touch points in degrees
                                 val fingerAngle: (MotionEvent) -> Float = { ev ->
                                     val dx = ev.getX(0) - ev.getX(1)
                                     val dy = ev.getY(0) - ev.getY(1)
@@ -419,17 +718,12 @@ class MainActivity : ComponentActivity() {
                                 businessCard.setOnTouchListener { v, event ->
                                     scaleDetector.onTouchEvent(event)
                                     gestureDetector.onTouchEvent(event)
-
                                     when (event.actionMasked) {
-                                        MotionEvent.ACTION_DOWN -> {
+                                        MotionEvent.ACTION_DOWN ->
                                             v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                                        }
-                                        MotionEvent.ACTION_POINTER_DOWN -> {
-                                            if (event.pointerCount == 2) {
-                                                prevAngle = fingerAngle(event)
-                                            }
-                                        }
-                                        MotionEvent.ACTION_MOVE -> {
+                                        MotionEvent.ACTION_POINTER_DOWN ->
+                                            if (event.pointerCount == 2) prevAngle = fingerAngle(event)
+                                        MotionEvent.ACTION_MOVE ->
                                             if (event.pointerCount >= 2 && !prevAngle.isNaN()) {
                                                 val angle = fingerAngle(event)
                                                 val delta = angle - prevAngle
@@ -439,10 +733,8 @@ class MainActivity : ComponentActivity() {
                                                 }
                                                 prevAngle = angle
                                             }
-                                        }
-                                        MotionEvent.ACTION_POINTER_UP -> {
+                                        MotionEvent.ACTION_POINTER_UP ->
                                             prevAngle = Float.NaN
-                                        }
                                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                                             prevAngle = Float.NaN
                                             val needsReset = scaleFactor != 1f || cardRotation != 0f
@@ -452,9 +744,7 @@ class MainActivity : ComponentActivity() {
                                                 .scaleX(1f).scaleY(1f).rotation(0f)
                                                 .setDuration(if (needsReset) 300L else 0L)
                                                 .setInterpolator(DecelerateInterpolator())
-                                                .withEndAction {
-                                                    v.setLayerType(View.LAYER_TYPE_NONE, null)
-                                                }
+                                                .withEndAction { v.setLayerType(View.LAYER_TYPE_NONE, null) }
                                                 .start()
                                         }
                                     }
@@ -465,11 +755,13 @@ class MainActivity : ComponentActivity() {
                                 root.findViewById<TextView>(R.id.phone_number).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
-                                    val vCard = "BEGIN:VCARD\nVERSION:3.0\nFN:$name\nTEL:$phone\nEND:VCARD"
-                                    showQrDialog(generateQrCode(vCard), "Поделиться номером")
+                                    showQrDialog(
+                                        generateQrCode("BEGIN:VCARD\nVERSION:3.0\nFN:$name\nTEL:$phone\nEND:VCARD"),
+                                        "Поделиться номером"
+                                    )
                                 }
 
-                                // ── Social info → QR for that network ─────
+                                // ── Social info → QR ──────────────────────
                                 root.findViewById<TextView>(R.id.telegram_info).setOnClickListener {
                                     val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
                                     val idx      = prefs.getInt(KEY_SELECTED_SOCIAL_INDEX, -1)
@@ -508,22 +800,24 @@ class MainActivity : ComponentActivity() {
                                     ))
                                 }
 
-                                // ── Share phone QR ──────────────────────────
+                                // ── Share phone QR ─────────────────────────
                                 root.findViewById<MaterialButton>(R.id.share_phone_button).setOnClickListener {
                                     val name  = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     val phone = root.findViewById<TextView>(R.id.phone_number).text.toString()
-                                    val vCard = "BEGIN:VCARD\nVERSION:3.0\nFN:$name\nTEL:$phone\nEND:VCARD"
-                                    showQrDialog(generateQrCode(vCard), "Поделиться номером")
+                                    showQrDialog(
+                                        generateQrCode("BEGIN:VCARD\nVERSION:3.0\nFN:$name\nTEL:$phone\nEND:VCARD"),
+                                        "Поделиться номером"
+                                    )
                                 }
 
-                                // ── Share email QR ──────────────────────────
+                                // ── Share email QR ─────────────────────────
                                 root.findViewById<MaterialButton>(R.id.share_email_button).setOnClickListener {
                                     val email = prefs.getString(KEY_EMAIL, "") ?: ""
                                     if (email.isBlank()) return@setOnClickListener
                                     showQrDialog(generateQrCode("mailto:$email"), "Поделиться email")
                                 }
 
-                                // ── Share social networks ───────────────────
+                                // ── Share social networks ──────────────────
                                 root.findViewById<MaterialButton>(R.id.share_social_button).setOnClickListener {
                                     val name = root.findViewById<TextView>(R.id.full_name).text.toString()
                                     showSocialShareDialog(name)
@@ -548,14 +842,14 @@ class MainActivity : ComponentActivity() {
 
                                 val cardPrimary   = if (dark) Color.WHITE else Color.BLACK
                                 val cardSecondary = if (dark) Color.parseColor("#BBBBBB")
-                                else Color.parseColor("#555555")
+                                                   else Color.parseColor("#555555")
                                 root.findViewById<TextView>(R.id.full_name).setTextColor(cardPrimary)
                                 root.findViewById<TextView>(R.id.position).setTextColor(cardSecondary)
                                 root.findViewById<TextView>(R.id.phone_number).setTextColor(cardPrimary)
                                 root.findViewById<TextView>(R.id.telegram_info).setTextColor(cardPrimary)
 
                                 val sheetHint = if (dark) Color.parseColor("#AAAAAA")
-                                else Color.parseColor("#777777")
+                                               else Color.parseColor("#777777")
                                 root.findViewById<TextView>(R.id.about).setTextColor(sheetHint)
 
                                 val btnBg   = if (dark) Color.WHITE else Color.BLACK
@@ -589,19 +883,19 @@ class MainActivity : ComponentActivity() {
                                 val logoView   = root.findViewById<ImageView>(R.id.logo)
                                 val socialView = root.findViewById<TextView>(R.id.telegram_info)
 
-                                posView.text = positionState.value
+                                posView.text       = positionState.value
                                 posView.visibility = if (showPositionState.value) View.VISIBLE else View.GONE
 
-                                phoneView.text = phoneState.value
+                                phoneView.text       = phoneState.value
                                 phoneView.visibility = if (showPhoneState.value) View.VISIBLE else View.GONE
 
                                 logoView.visibility = if (showLogoState.value) View.VISIBLE else View.GONE
 
                                 if (showSocialState.value) {
                                     val networks = SocialNetworkUtils.loadNetworks(prefs, KEY_SOCIAL_NETWORKS)
-                                    val idx = selectedSocialIdx.value
+                                    val idx      = selectedSocialIdx.value
                                     if (idx >= 0 && idx < networks.size) {
-                                        socialView.text = "${networks[idx].type}: ${networks[idx].username}"
+                                        socialView.text       = "${networks[idx].type}: ${networks[idx].username}"
                                         socialView.visibility = View.VISIBLE
                                     } else {
                                         socialView.visibility = View.GONE
@@ -612,27 +906,21 @@ class MainActivity : ComponentActivity() {
 
                                 val uriStr = profileImageUriState.value
                                 if (uriStr != null) {
-                                    root.findViewById<ImageView>(R.id.photo)
-                                        .setImageURI(Uri.parse(uriStr))
+                                    root.findViewById<ImageView>(R.id.photo).setImageURI(Uri.parse(uriStr))
                                 } else {
-                                    root.findViewById<ImageView>(R.id.photo)
-                                        .setImageResource(R.drawable.photo)
+                                    root.findViewById<ImageView>(R.id.photo).setImageResource(R.drawable.photo)
                                 }
                             }
                         )
 
-                        // Floating hamburger — below status bar
+                        // Floating hamburger
                         IconButton(
                             onClick  = { scope.launch { drawerState.open() } },
                             modifier = Modifier
                                 .align(Alignment.TopStart)
                                 .padding(top = 28.dp, start = 4.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Menu,
-                                contentDescription = "Меню",
-                                tint = iconTint
-                            )
+                            Icon(Icons.Default.Menu, contentDescription = "Меню", tint = iconTint)
                         }
                     }
                 }
@@ -640,7 +928,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ── NFC lifecycle ─────────────────────────────────────────────────────
+    // ── NFC lifecycle ──────────────────────────────────────────────────────
     override fun onResume() {
         super.onResume()
         if (nfcWriteMode) {
@@ -658,7 +946,8 @@ class MainActivity : ComponentActivity() {
         if (nfcWriteMode &&
             (NfcAdapter.ACTION_TAG_DISCOVERED == intent.action ||
              NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action ||
-             NfcAdapter.ACTION_TECH_DISCOVERED == intent.action)) {
+             NfcAdapter.ACTION_TECH_DISCOVERED == intent.action)
+        ) {
             val tag: Tag? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
             } else {
@@ -685,8 +974,7 @@ class MainActivity : ComponentActivity() {
             if (email.isNotBlank())    appendLine("EMAIL:$email")
             if (position.isNotBlank()) appendLine("TITLE:$position")
             if (networks.isNotEmpty()) {
-                val note = networks.joinToString(", ") { "${it.type}: ${it.username}" }
-                appendLine("NOTE:$note")
+                appendLine("NOTE:${networks.joinToString(", ") { "${it.type}: ${it.username}" }}")
             }
             append("END:VCARD")
         }
@@ -695,12 +983,11 @@ class MainActivity : ComponentActivity() {
     private fun showNfcWriteDialog() {
         nfcWriteMode = true
         nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
-
         nfcWriteDialog = android.app.AlertDialog.Builder(this)
             .setTitle("Запись на NFC-метку")
             .setMessage(
                 "Поднесите телефон к NFC-метке (наклейке или карточке).\n\n" +
-                "Когда контакт будет записан, любой сможет считать его стандартным приложением контактов — приложение не нужно."
+                "Контакт будет записан в формате vCard — любой телефон считает его без приложения."
             )
             .setNegativeButton("Отмена") { dialog, _ ->
                 dialog.dismiss()
@@ -712,26 +999,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun writeNdefToTag(tag: Tag) {
-        val vCard       = buildVCard()
-        val ndefRecord  = NdefRecord.createMime("text/x-vCard", vCard.toByteArray(Charsets.UTF_8))
-        val ndefMessage = NdefMessage(arrayOf(ndefRecord))
-
+        val ndefMessage = NdefMessage(arrayOf(
+            NdefRecord.createMime("text/x-vCard", buildVCard().toByteArray(Charsets.UTF_8))
+        ))
         try {
-            val ndef          = Ndef.get(tag)
+            val ndef           = Ndef.get(tag)
             val ndefFormatable = NdefFormatable.get(tag)
-
             when {
                 ndef != null -> {
                     ndef.connect()
                     when {
                         !ndef.isWritable ->
-                            runOnUiThread {
-                                Toast.makeText(this, "NFC-метка защищена от записи", Toast.LENGTH_LONG).show()
-                            }
+                            runOnUiThread { Toast.makeText(this, "NFC-метка защищена от записи", Toast.LENGTH_LONG).show() }
                         ndef.maxSize < ndefMessage.byteArrayLength ->
-                            runOnUiThread {
-                                Toast.makeText(this, "NFC-метка слишком маленькая для контакта", Toast.LENGTH_LONG).show()
-                            }
+                            runOnUiThread { Toast.makeText(this, "NFC-метка слишком маленькая для контакта", Toast.LENGTH_LONG).show() }
                         else -> {
                             ndef.writeNdefMessage(ndefMessage)
                             runOnUiThread {
@@ -755,10 +1036,9 @@ class MainActivity : ComponentActivity() {
                         Toast.makeText(this, "✓ Контакт записан на NFC-метку!", Toast.LENGTH_SHORT).show()
                     }
                 }
-                else ->
-                    runOnUiThread {
-                        Toast.makeText(this, "Эта NFC-метка не поддерживает запись", Toast.LENGTH_LONG).show()
-                    }
+                else -> runOnUiThread {
+                    Toast.makeText(this, "Эта NFC-метка не поддерживает запись", Toast.LENGTH_LONG).show()
+                }
             }
         } catch (e: Exception) {
             runOnUiThread {
@@ -790,30 +1070,32 @@ class MainActivity : ComponentActivity() {
 
         networks.forEach { network ->
             content.addView(MaterialButton(this).apply {
-                text = "${network.type}: ${network.username}"
+                text               = "${network.type}: ${network.username}"
                 setTextColor(Color.WHITE)
                 backgroundTintList = android.content.res.ColorStateList.valueOf(Color.BLACK)
-                cornerRadius = (24 * density).toInt()
-                layoutParams = LinearLayout.LayoutParams(
+                cornerRadius       = (24 * density).toInt()
+                layoutParams       = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).also { it.bottomMargin = (10 * density).toInt() }
                 setOnClickListener {
                     dialog.dismiss()
-                    val url = SocialNetworkUtils.getNetworkUrl(network.type, network.username)
-                    showQrDialog(generateQrCode(url), network.type)
+                    showQrDialog(
+                        generateQrCode(SocialNetworkUtils.getNetworkUrl(network.type, network.username)),
+                        network.type
+                    )
                 }
             })
         }
 
         content.addView(MaterialButton(this).apply {
-            text  = "Поделиться всеми соц.сетями"
+            text               = "Поделиться всеми соц.сетями"
             setTextColor(Color.BLACK)
             backgroundTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
-            strokeColor  = android.content.res.ColorStateList.valueOf(Color.BLACK)
-            strokeWidth  = (1 * density).toInt()
-            cornerRadius = (24 * density).toInt()
-            layoutParams = LinearLayout.LayoutParams(
+            strokeColor        = android.content.res.ColorStateList.valueOf(Color.BLACK)
+            strokeWidth        = (1 * density).toInt()
+            cornerRadius       = (24 * density).toInt()
+            layoutParams       = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).also { it.topMargin = (6 * density).toInt() }
@@ -828,8 +1110,7 @@ class MainActivity : ComponentActivity() {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, text)
                         putExtra(Intent.EXTRA_TITLE, "Социальные сети")
-                    },
-                    "Добавить в заметки"
+                    }, "Добавить в заметки"
                 ))
             }
         })
