@@ -15,8 +15,9 @@ data class ProfileData(
     var showSocial: Boolean = false,
     var selectedSocialIndex: Int = -1,
     var socialNetworks: String = "[]",
-    // Card design
     var cardBgColor1: String = "",
     var cardBgColor2: String = "",
-    var cardTextColor: String = ""
+    var cardTextColor: String = "",
+    var cardTemplate: Int = 0,
+    var logoImageUri: String? = null
 )

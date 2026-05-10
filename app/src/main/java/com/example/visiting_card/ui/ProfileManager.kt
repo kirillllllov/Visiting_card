@@ -4,9 +4,11 @@ import android.content.SharedPreferences
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_ABOUT
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_BG1
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_BG2
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_TEMPLATE
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_CARD_TEXT_COLOR
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_EMAIL
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_FULL_NAME
+import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_LOGO_IMAGE_URI
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_PHONE
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_POSITION
 import com.example.visiting_card.ui.EditDataActivity.Companion.KEY_PROFILE_IMAGE_URI
@@ -41,9 +43,7 @@ object ProfileManager {
         return try {
             val arr = JSONArray(json)
             (0 until arr.length()).map { i -> fromJson(arr.getJSONObject(i)) }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        } catch (e: Exception) { emptyList() }
     }
 
     fun saveProfiles(prefs: SharedPreferences, profiles: List<ProfileData>) {
@@ -63,26 +63,15 @@ object ProfileManager {
         saveProfiles(prefs, profiles)
     }
 
-    fun switchTo(
-        prefs: SharedPreferences,
-        currentActiveId: String,
-        currentLabel: String,
-        targetId: String
-    ): ProfileData? {
+    fun switchTo(prefs: SharedPreferences, currentActiveId: String, currentLabel: String, targetId: String): ProfileData? {
         syncActiveFromMainPrefs(prefs, currentActiveId, currentLabel)
-        val profiles = getAllProfiles(prefs)
-        val target   = profiles.firstOrNull { it.id == targetId } ?: return null
+        val target = getAllProfiles(prefs).firstOrNull { it.id == targetId } ?: return null
         applyToMainPrefs(prefs, target)
         prefs.edit().putString(KEY_ACTIVE_ID, targetId).apply()
         return target
     }
 
-    fun createAndSwitchTo(
-        prefs: SharedPreferences,
-        currentActiveId: String,
-        currentLabel: String,
-        newLabel: String
-    ): ProfileData {
+    fun createAndSwitchTo(prefs: SharedPreferences, currentActiveId: String, currentLabel: String, newLabel: String): ProfileData {
         syncActiveFromMainPrefs(prefs, currentActiveId, currentLabel)
         val newProfile = ProfileData(id = UUID.randomUUID().toString(), label = newLabel)
         val profiles   = getAllProfiles(prefs).toMutableList()
@@ -93,12 +82,7 @@ object ProfileManager {
         return newProfile
     }
 
-    fun deleteProfile(
-        prefs: SharedPreferences,
-        idToDelete: String,
-        currentActiveId: String,
-        currentLabel: String
-    ): ProfileData? {
+    fun deleteProfile(prefs: SharedPreferences, idToDelete: String, currentActiveId: String, currentLabel: String): ProfileData? {
         syncActiveFromMainPrefs(prefs, currentActiveId, currentLabel)
         val profiles = getAllProfiles(prefs).toMutableList()
         if (profiles.size <= 1) return null
@@ -109,18 +93,13 @@ object ProfileManager {
             applyToMainPrefs(prefs, next)
             prefs.edit().putString(KEY_ACTIVE_ID, next.id).apply()
             next
-        } else {
-            profiles.firstOrNull { it.id == currentActiveId }
-        }
+        } else profiles.firstOrNull { it.id == currentActiveId }
     }
 
     fun renameProfile(prefs: SharedPreferences, id: String, newLabel: String) {
         val profiles = getAllProfiles(prefs).toMutableList()
         val idx      = profiles.indexOfFirst { it.id == id }
-        if (idx >= 0) {
-            profiles[idx] = profiles[idx].copy(label = newLabel)
-            saveProfiles(prefs, profiles)
-        }
+        if (idx >= 0) { profiles[idx] = profiles[idx].copy(label = newLabel); saveProfiles(prefs, profiles) }
     }
 
     fun snapshotFromMainPrefs(prefs: SharedPreferences, id: String, label: String) = ProfileData(
@@ -140,7 +119,9 @@ object ProfileManager {
         socialNetworks      = prefs.getString(KEY_SOCIAL_NETWORKS, "[]") ?: "[]",
         cardBgColor1        = prefs.getString(KEY_CARD_BG1, "") ?: "",
         cardBgColor2        = prefs.getString(KEY_CARD_BG2, "") ?: "",
-        cardTextColor       = prefs.getString(KEY_CARD_TEXT_COLOR, "") ?: ""
+        cardTextColor       = prefs.getString(KEY_CARD_TEXT_COLOR, "") ?: "",
+        cardTemplate        = prefs.getInt(KEY_CARD_TEMPLATE, 0),
+        logoImageUri        = prefs.getString(KEY_LOGO_IMAGE_URI, null)
     )
 
     fun applyToMainPrefs(prefs: SharedPreferences, profile: ProfileData) {
@@ -160,6 +141,8 @@ object ProfileManager {
             .putString(KEY_CARD_BG1, profile.cardBgColor1)
             .putString(KEY_CARD_BG2, profile.cardBgColor2)
             .putString(KEY_CARD_TEXT_COLOR, profile.cardTextColor)
+            .putInt(KEY_CARD_TEMPLATE, profile.cardTemplate)
+            .putString(KEY_LOGO_IMAGE_URI, profile.logoImageUri)
             .apply()
     }
 
@@ -181,6 +164,8 @@ object ProfileManager {
         put("cardBgColor1", p.cardBgColor1)
         put("cardBgColor2", p.cardBgColor2)
         put("cardTextColor", p.cardTextColor)
+        put("cardTemplate", p.cardTemplate)
+        put("logoImageUri", p.logoImageUri ?: "")
     }
 
     private fun fromJson(o: JSONObject) = ProfileData(
@@ -200,6 +185,8 @@ object ProfileManager {
         socialNetworks      = o.optString("socialNetworks", "[]"),
         cardBgColor1        = o.optString("cardBgColor1", ""),
         cardBgColor2        = o.optString("cardBgColor2", ""),
-        cardTextColor       = o.optString("cardTextColor", "")
+        cardTextColor       = o.optString("cardTextColor", ""),
+        cardTemplate        = o.optInt("cardTemplate", 0),
+        logoImageUri        = o.optString("logoImageUri").ifEmpty { null }
     )
 }

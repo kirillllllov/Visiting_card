@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- Company logo — top right (small) -->
+    <ImageView
+        android:id="@+id/logo"
+        android:layout_width="80dp"
+        android:layout_height="16dp"
+        android:contentDescription="Company Logo"
+        android:src="@drawable/logo_for_light_theme"
+        android:scaleType="fitEnd"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Center block: name + divider + position -->
+    <LinearLayout
+        android:id="@+id/center_block"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/phone_number"
+        app:layout_constraintVertical_bias="0.48">
+
+        <TextView
+            android:id="@+id/full_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/garamond_classico_sc"
+            android:gravity="center"
+            android:text="Имя Фамилия"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divider_line"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:layout_marginHorizontal="20dp"
+            android:alpha="0.35"
+            android:background="#000000" />
+
+        <TextView
+            android:id="@+id/position"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/garamond_classico_sc"
+            android:gravity="center"
+            android:text="Должность"
+            android:textSize="15sp" />
+
+    </LinearLayout>
+
+    <!-- Phone — bottom left -->
+    <TextView
+        android:id="@+id/phone_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/garamond_classico_sc"
+        android:text="+7 (999) 123-45-67"
+        android:textSize="13sp"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginBottom="6dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Social — bottom right -->
+    <TextView
+        android:id="@+id/telegram_info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/garamond_classico_sc"
+        android:text="@username"
+        android:textSize="13sp"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginBottom="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

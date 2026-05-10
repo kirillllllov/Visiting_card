@@ -39,6 +39,10 @@ class EditDataActivity : ComponentActivity() {
         const val KEY_CARD_BG1        = "card_bg_color1"
         const val KEY_CARD_BG2        = "card_bg_color2"
         const val KEY_CARD_TEXT_COLOR = "card_text_color"
+        // Card template (0=classic, 1=horizontal, 2=minimal)
+        const val KEY_CARD_TEMPLATE   = "card_template"
+        // Custom logo
+        const val KEY_LOGO_IMAGE_URI  = "logo_image_uri"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
